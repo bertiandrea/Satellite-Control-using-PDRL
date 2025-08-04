@@ -314,11 +314,11 @@ class Satellite(VecTask):
     def apply_torque(self) -> None:       
         self.actions = torch.mul(self.actions, self.torque_scale)
 
-        #if self.actuation_noise_std > 0.0:
-        #    self.actions = torch.add(
-        #        self.actions,
-        #        torch.normal(mean=0.0, std=self.actuation_noise_std, size=self.actions.shape, device=self.device)
-        #    )
+        if self.actuation_noise_std > 0.0:
+            self.actions = torch.add(
+                self.actions,
+                torch.normal(mean=0.0, std=self.actuation_noise_std, size=self.actions.shape, device=self.device)
+            )
         
         self.actions[self.reset_ids] = torch.zeros((len(self.reset_ids), 3), dtype=torch.float, device=self.device)
         
@@ -362,9 +362,9 @@ class Satellite(VecTask):
             (self.obs_buf, self.satellite_angvels), dim=-1)
         ########################################
 
-        #if self.sensor_noise_std > 0.0:
-        #    noise = torch.normal(mean=0.0, std=self.sensor_noise_std, size=self.state_space.shape, device=self.device)
-        #    self.obs_buf = torch.add(self.obs_buf, noise[:, :self.num_observations])
+        if self.sensor_noise_std > 0.0:
+            noise = torch.normal(mean=0.0, std=self.sensor_noise_std, size=self.state_space.shape, device=self.device)
+            self.obs_buf = torch.add(self.obs_buf, noise[:, :self.num_observations])
 
         ########################################
         assert not torch.isnan(self.obs_buf).any(), f"self.obs_buf has NaN: {self.actions, self.obs_buf}"

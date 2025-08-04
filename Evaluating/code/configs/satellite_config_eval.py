@@ -45,8 +45,8 @@ CONFIG = {
 
         "envSpacing": 3.0,
         
-        "sensor_noise_std": 0.0,
-        "actuation_noise_std": 0.0,
+        "sensor_noise_std": 1.0,
+        "actuation_noise_std": 1.0,
 
         "threshold_ang_goal": 0.15, # radians
         "threshold_vel_goal": 0.15, # radians/sec
@@ -171,7 +171,7 @@ CONFIG = {
     },
     # --- logging -----------------------------------------------------------
     "log_reward": {
-        "log_reward": False,
+        "log_reward": True,
         "log_reward_interval": 100,  # steps
     },
     # --- explosion ---------------------------------------------------------
