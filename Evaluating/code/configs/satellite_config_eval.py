@@ -49,6 +49,7 @@ CONFIG = {
         "threshold_vel_goal": 0.15, # radians/sec
         "overspeed_ang_vel": 3.1416,  # radians/sec
         "goal_time": 10, # seconds
+        "sparse_reward": 100.0, # reward for reaching the goal
         "episode_length_s": 30.0, # seconds
 
         "clipActions": 1.0,

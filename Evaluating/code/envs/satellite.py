@@ -62,6 +62,8 @@ class Satellite(VecTask):
         self.discretize_starting_pos = cfg["env"].get('discretize_starting_pos', False)
         ##################################################
 
+        self.sparse_reward =        cfg["env"].get('sparse_reward', 100.0)
+
         super().__init__(config=cfg, rl_device=rl_device, sim_device=sim_device, graphics_device_id=graphics_device_id, headless=headless, virtual_screen_capture=virtual_screen_capture, force_render=force_render)
 
         ################# SETUP SIM #################
@@ -413,6 +415,11 @@ class Satellite(VecTask):
             self.satellite_quats, self.satellite_angvels, self.satellite_angacc,
             self.goal_quat, self.goal_ang_vel, self.goal_ang_acc,
             self.actions
+        )
+        self.rew_buf = torch.where(
+            self.goal_reached,
+            torch.add(self.rew_buf, self.sparse_reward),
+            self.rew_buf
         )
         self.episode_rew_buf += self.rew_buf
         self.writer.add_scalar('Reward_policy/total_episode', self.episode_rew_buf.mean().item(), global_step=self.control_steps)
