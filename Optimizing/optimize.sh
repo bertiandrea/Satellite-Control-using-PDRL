@@ -63,7 +63,6 @@ else
     exit 1
 fi
 
-# Avvia il training con la reward function scelta
-python -m satellite.optimize --reward-fn "$REWARD_FN"
+python -m code.optimize --reward-fn "$REWARD_FN"
 
 exit 0

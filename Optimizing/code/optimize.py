@@ -14,13 +14,13 @@ from code.rewards.satellite_reward import (
     ContinuousDiscreteEffortReward,
     ShapingReward
 )
+from code.trainer.trainer import Trainer
 
 import isaacgym
 import torch
 
 from skrl.agents.torch.ppo import PPO, PPO_DEFAULT_CONFIG
 from skrl.memories.torch import RandomMemory
-from satellite.trainer.trainer import Trainer
 from skrl.utils import set_seed
 
 import argparse
@@ -126,6 +126,7 @@ def objective(trial: optuna.Trial) -> float:
     trainer = Trainer(cfg=CONFIG["rl"]["trainer"], env=env, agent=agent)
     
     try:
+        best_mean_return = 0
         states, infos = trainer.init_step_train()
         for epoch in range(CONFIG["rl"]["trainer"]["n_epochs"]):
             #############################################################################
@@ -134,6 +135,8 @@ def objective(trial: optuna.Trial) -> float:
             #############################################################################
             mean_return = torch.sum(rewards, dim=0).item()
             print(f"Epoch {epoch+1}/{CONFIG['rl']['trainer']['n_epochs']}, mean_return: {mean_return:.3f}")
+            if mean_return > best_mean_return:
+                best_mean_return = mean_return
             #############################################################################
             trial.report(mean_return, step=epoch)
             if trial.should_prune():
@@ -143,7 +146,7 @@ def objective(trial: optuna.Trial) -> float:
     finally:
         env.close() # Force environment close to avoid memory leaks
     
-    return mean_return
+    return best_mean_return
 
 def main():
     global args

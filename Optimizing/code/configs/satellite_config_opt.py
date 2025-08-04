@@ -8,7 +8,7 @@ import torch
 
 NUM_ENVS = 4096
 ROLLOUTS = 16
-N_EPOCHS = 1250
+N_EPOCHS = 100
 HEADLESS = True
 
 CONFIG = {
@@ -33,9 +33,9 @@ CONFIG = {
     "env": {
         "numEnvs": NUM_ENVS,
 
-        "numObservations": 11, # satellite_quats (4) + quat_diff_rad (1) + satellite_angacc (3) + actions (3)
+        "numObservations": 15, # satellite_quats (4) + quat_diff (4) + quat_diff_rad (1) + satellite_angacc (3) + actions (3)
 
-        "numStates": 14, # satellite_quats (4) + quat_diff_rad (1) + satellite_angacc (3) + actions (3) + satellite_angvels (3)
+        "numStates": 18, # satellite_quats (4) + quat_diff (4) + quat_diff_rad (1) + satellite_angacc (3) + actions (3) + satellite_angvels (3)
 
         "numActions": 3,
 
