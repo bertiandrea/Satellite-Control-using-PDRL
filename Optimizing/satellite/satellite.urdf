@@ -1,0 +1,145 @@
+<?xml version="1.0"?>
+<robot name="satellite">
+  <!-- Corpo Centrale: Cilindro (asse z) -->
+  <!-- Massa = 500.0, r = 0.5, lunghezza = 2.0 -->
+  <!-- Ixx = Iyy = ~197.92, Izz = ~62.5 -->
+  <link name="body">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="500.0"/>
+      <inertia ixx="197.92" ixy="0" ixz="0" iyy="197.92" iyz="0" izz="62.5"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.5" length="2.0"/>
+      </geometry>
+      <material name="grey">
+        <color rgba="0.5 0.5 0.5 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.5" length="2.0"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- Giunti per le braccia -->
+  <joint name="body_left_arm_joint" type="fixed">
+    <parent link="body"/>
+    <child link="left_arm"/>
+    <origin xyz="-0.5 0 0" rpy="0 0 0"/>
+  </joint>
+  <joint name="body_right_arm_joint" type="fixed">
+    <parent link="body"/>
+    <child link="right_arm"/>
+    <origin xyz="0.5 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Braccia: Scatola (0.1 x 0.1 x 0.1), Massa = 10.0 -->
+  <link name="left_arm">
+    <inertial>
+      <origin xyz="-0.05 0 0" rpy="0 0 0"/>
+      <mass value="10.0"/>
+      <inertia ixx="0.01667" ixy="0" ixz="0" iyy="0.01667" iyz="0" izz="0.01667"/>
+    </inertial>
+    <visual>
+      <origin xyz="-0.05 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.1 0.1 0.1"/>
+      </geometry>
+      <material name="grey">
+        <color rgba="0.5 0.5 0.5 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="-0.05 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.1 0.1 0.1"/>
+      </geometry>
+    </collision>
+  </link>
+  <link name="right_arm">
+    <inertial>
+      <origin xyz="0.05 0 0" rpy="0 0 0"/>
+      <mass value="10.0"/>
+      <inertia ixx="0.01667" ixy="0" ixz="0" iyy="0.01667" iyz="0" izz="0.01667"/>
+    </inertial>
+    <visual>
+      <origin xyz="0.05 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.1 0.1 0.1"/>
+      </geometry>
+      <material name="grey">
+        <color rgba="0.5 0.5 0.5 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.05 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.1 0.1 0.1"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- Giunti per i pannelli (posti all'estremità delle braccia a ±0.1 m) -->
+  <joint name="left_arm_left_panel_joint" type="fixed">
+    <parent link="left_arm"/>
+    <child link="left_panel"/>
+    <origin xyz="-0.1 0 0" rpy="0 0 0"/>
+  </joint>
+  <joint name="right_arm_right_panel_joint" type="fixed">
+    <parent link="right_arm"/>
+    <child link="right_panel"/>
+    <origin xyz="0.1 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Pannelli: Scatola (1.0 x 0.1 x 2.0), Massa = 50.0 -->
+  <link name="left_panel">
+    <inertial>
+      <origin xyz="-0.5 0 0" rpy="0 0 0"/>
+      <mass value="50.0"/>
+      <inertia ixx="16.70833" ixy="0" ixz="0" iyy="20.83333" iyz="0" izz="4.20833"/>
+    </inertial>
+    <visual>
+      <origin xyz="-0.5 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="1.0 0.1 2.0"/>
+      </geometry>
+      <material name="blue">
+        <color rgba="0 0 1 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="-0.5 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="1.0 0.1 2.0"/>
+      </geometry>
+    </collision>
+  </link>
+  <link name="right_panel">
+    <inertial>
+      <origin xyz="0.5 0 0" rpy="0 0 0"/>
+      <mass value="50.0"/>
+      <inertia ixx="16.70833" ixy="0" ixz="0" iyy="20.83333" iyz="0" izz="4.20833"/>
+    </inertial>
+    <visual>
+      <origin xyz="0.5 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="1.0 0.1 2.0"/>
+      </geometry>
+      <material name="blue">
+        <color rgba="0 0 1 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.5 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="1.0 0.1 2.0"/>
+      </geometry>
+    </collision>
+  </link>
+</robot>
+
