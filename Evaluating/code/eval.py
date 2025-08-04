@@ -1,11 +1,10 @@
 # eval.py
 
-from satellite.configs.satellite_config import CONFIG
-from satellite.envs.satellite import Satellite
-from satellite.models.custom_model import Policy, Value, Shared
-from satellite.envs.wrappers.isaacgym_envs_wrapper import IsaacGymWrapper
-from satellite.CAPS.agent_wrapper_CAPS import PPOWrapperCAPS
-from satellite.rewards.satellite_reward import (
+from code.configs.satellite_config_eval import CONFIG
+from code.envs.satellite import Satellite
+from code.models.custom_model import Policy, Value, Shared
+from code.envs.wrappers.isaacgym_envs_wrapper import IsaacGymWrapper
+from code.rewards.satellite_reward import (
     TestReward,
     TestRewardSpin,
     TestRewardCurriculum,
@@ -16,7 +15,7 @@ from satellite.rewards.satellite_reward import (
     ShapingReward,
 )
 
-import isaacgym
+import isaacgym #BugFix
 import torch
 
 from skrl.agents.torch.ppo import PPO, PPO_DEFAULT_CONFIG
@@ -85,23 +84,14 @@ def main():
     cfg_ppo = PPO_DEFAULT_CONFIG.copy()
     cfg_ppo.update(CONFIG["rl"]["PPO"])
    
-    if CONFIG["CAPS"]["enabled"]:
-        cfg_ppo.update(CONFIG["CAPS"])
-        agent = PPOWrapperCAPS(models=models,
-                memory=memory,
-                cfg=cfg_ppo,
-                observation_space=env.state_space,
-                action_space=env.action_space,
-                device=env.device)
-    else:
-        agent = PPO(models=models,
-                memory=memory,
-                cfg=cfg_ppo,
-                observation_space=env.state_space,
-                action_space=env.action_space,
-                device=env.device)
-    
-    agent.load("/home/andreaberti/ISAAC_SKRL_Integration/runs/satellite/25-07-07_20-17-55-211024_PPO/checkpoints/best_agent.pt")
+    agent = PPO(models=models,
+            memory=memory,
+            cfg=cfg_ppo,
+            observation_space=env.state_space,
+            action_space=env.action_space,
+            device=env.device)
+
+    agent.load("/home/andreaberti/ISAAC_SKRL_Integration/runs/checkpoints/best_agent.pt")
 
     trainer = SequentialTrainer(cfg=CONFIG["rl"]["trainer"], env=env, agents=agent)
 

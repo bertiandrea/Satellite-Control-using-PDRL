@@ -63,11 +63,6 @@ else
     exit 1
 fi
 
-# Avvia il training con la reward function scelta
-#python -m satellite.train_cartpole
-
-#python -m satellite.train_quadcopter
-
 python -m satellite.eval --reward-fn "$REWARD_FN"
 
 exit 0

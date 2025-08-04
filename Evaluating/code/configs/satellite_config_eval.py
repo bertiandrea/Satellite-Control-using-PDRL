@@ -37,9 +37,9 @@ CONFIG = {
     "env": {
         "numEnvs": NUM_ENVS,
 
-        "numObservations": 11, # satellite_quats (4) + quat_diff_rad (1) + satellite_angacc (3) + actions (3)
+        "numObservations": 15, # satellite_quats (4) + quat_diff (4) + quat_diff_rad (1) + satellite_angacc (3) + actions (3)
 
-        "numStates": 14, # satellite_quats (4) + quat_diff_rad (1) + satellite_angacc (3) + actions (3) + satellite_angvels (3)
+        "numStates": 18, # satellite_quats (4) + quat_diff (4) + quat_diff_rad (1) + satellite_angacc (3) + actions (3) + satellite_angvels (3)
 
         "numActions": 3,
 
@@ -51,6 +51,7 @@ CONFIG = {
         "threshold_ang_goal": 0.15, # radians
         "threshold_vel_goal": 0.15, # radians/sec
         "overspeed_ang_vel": 3.1416,  # radians/sec
+        "goal_time": 10, # seconds
         "episode_length_s": 30.0, # seconds
 
         "clipActions": 1.0,
@@ -62,6 +63,8 @@ CONFIG = {
         
         "debug_prints": False,
         
+        "discretize_starting_pos": True,
+
         "asset": {
 
             "assetRoot": str(Path(__file__).resolve().parent.parent),
@@ -69,7 +72,7 @@ CONFIG = {
             "assetName": "satellite",
 
             "init_pos_p": [0, 0, 0],
-            "init_pos_r": [0.7071068, 0, 0, 0.7071068],
+            "init_pos_r": [0, 0, 0, 1],
             
             #"disable_gravity"
             #"collapse_fixed_joints"
@@ -166,30 +169,25 @@ CONFIG = {
             "rollouts": ROLLOUTS,
         },
     },
-
-    # --- low-level controllers --------------------------------------------
-    "controller": {
-        "controller_logic": False
-    },
     # --- logging -----------------------------------------------------------
     "log_reward": {
         "log_reward": False
-    },
-    # --- CAPS --------------------------------------------------------------
-    "CAPS": {
-        "enabled": False
     },
     # --- explosion ---------------------------------------------------------
     "explosion": {
         "enabled": True,
         "explosion_time": 3,  # seconds
     },
+    # --- asteroid ----------------------------------------------------------
+    "asteroid": {
+        "enabled": True,
+        "object_mass": 0.0,  # kg
+        "object_mass_std": 0.0,  # kg
+        "object_mass_time": 120,  # seconds
+    },
     # --- randomize masses --------------------------------------------------
     "randomize_masses": {
-        "enabled": False
+        "enabled": False,
+        "mass_std": 5,
     },
-    # --- dr_randomization -------------------------------------------------
-    "dr_randomization": {
-        "enabled": False
-    }
 }

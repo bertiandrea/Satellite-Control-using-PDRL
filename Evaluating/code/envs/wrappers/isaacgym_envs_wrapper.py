@@ -1,6 +1,6 @@
 # isaacgym_envs.py
 
-from satellite.envs.wrappers.base import Wrapper
+from code.envs.wrappers.base import Wrapper
 
 import isaacgym #BugFix
 import torch
