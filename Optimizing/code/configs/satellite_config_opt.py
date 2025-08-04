@@ -7,10 +7,9 @@ import isaacgym
 import torch
 
 NUM_ENVS = 4096
-N_EPOCHS = 1250
-HEADLESS = False
-DEBUG_ARROWS = True
 ROLLOUTS = 16
+N_EPOCHS = 1250
+HEADLESS = True
 
 CONFIG = {
     # --- seed & devices ----------------------------------------------------
@@ -34,33 +33,27 @@ CONFIG = {
     "env": {
         "numEnvs": NUM_ENVS,
 
-        "numObservations": 15, # satellite_quats (4) + quat_diff (4) + quat_diff_rad (1) + satellite_angacc (3) + actions (3)
+        "numObservations": 11, # satellite_quats (4) + quat_diff_rad (1) + satellite_angacc (3) + actions (3)
 
-        "numStates": 18, # satellite_quats (4) + quat_diff (4) + quat_diff_rad (1) + satellite_angacc (3) + actions (3) + satellite_angvels (3)
+        "numStates": 14, # satellite_quats (4) + quat_diff_rad (1) + satellite_angacc (3) + actions (3) + satellite_angvels (3)
 
         "numActions": 3,
 
         "envSpacing": 3.0,
-        
-        "sensor_noise_std": 1.0,
-        "actuation_noise_std": 1.0,
 
         "threshold_ang_goal": 0.15, # radians
         "threshold_vel_goal": 0.15, # radians/sec
         "overspeed_ang_vel": 3.1416,  # radians/sec
-        "goal_time": 10, # seconds
-        "episode_length_s": 30.0, # seconds
+        "episode_length_s": 60,
 
         "clipActions": 1.0,
         "clipObservations": 10.0,
 
         "torque_scale": 100.0,
 
-        "debug_arrows": DEBUG_ARROWS,
-        
+        "debug_arrows": False,
+
         "debug_prints": False,
-        
-        "discretize_starting_pos": True,
 
         "asset": {
 
@@ -147,7 +140,9 @@ CONFIG = {
         "PPO": {
             "num_envs": NUM_ENVS,
             "rollouts": ROLLOUTS,
-
+            "learning_epochs": 8,
+            "mini_batches": 8,
+            
             "experiment": {
                 "write_interval": "auto",
                 "checkpoint_interval": "auto",
@@ -168,31 +163,7 @@ CONFIG = {
     },
     # --- logging -----------------------------------------------------------
     "log_reward": {
-        "log_reward": True,
-        "log_reward_interval": 100,  # steps
-    },
-    # --- explosion ---------------------------------------------------------
-    "explosion": {
-        "enabled": True,
-        "explosion_time": 3,  # seconds
-    },
-    # --- asteroid ----------------------------------------------------------
-    "asteroid": {
-        "enabled": True,
-        "object_mass": 0.0,  # kg
-        "object_mass_std": 0.0,  # kg
-        "object_mass_time": 120,  # seconds
-    },
-    # --- randomize masses --------------------------------------------------
-    "randomize_masses": {
-        "enabled": True,
-        "mass_std": 5,
-    },
-    # --- low-level controller --------------------------------------------
-    "controller": {
-        "controller_logic": False
-    },
-    "pid": {
-        "rate": {"kp": 0.5, "ki": 0.0, "kd": 0.1},
+        "log_reward": False,
+        "log_reward_interval": 100,
     },
 }
