@@ -1,29 +1,4 @@
-# ISAAC_SKRL_Integration
-
-Il progetto mette in piedi una pipeline completa per addestrare un agente di controllo dell’assetto orbitale di un satellite, basata su due componenti chiave: la simulazione fisica parallela offerta da NVIDIA Isaac Gym e l’algoritmo PPO (Proximal Policy Optimization) fornito da SKRL.
-
----
-## Code
-### Configuration
-Modulo per la definizione di tutti i parametri necessari al funzionamento del sistema: dalla gestione del seed e del dispositivo di calcolo (CPU/GPU), fino ai dettagli relativi agli ambienti paralleli. Include anche i percorsi al file URDF dell’asset, i parametri di simulazione e i setting dell’algoritmo PPO.
-
-### Environment
-Il modulo environment definisce classi che avviano e orchestrano in parallelo N istanze di simulazione con NVIDIA Isaac Gym: ciascuna classe si occupa di inizializzare gli ambienti caricando il modello URDF, controllare il ciclo di vita di ogni simulazione (reset, step, terminazione), raccogliere osservazioni e ricompense da tutte le istanze e fornire i dati necessari all'algoritmo di PPO.
-
-### Rewards
-Il sistema prevede un set modulare di funzioni di ricompensa che permettono l'implementazione di diverse strategie. Ogni funzione riceve in ingresso l’errore di orientamento, di velocità e di accelerazione rispetto al goal e restituisce un valore che rappresenta la reward.
-
-### Utilities
-Questo modulo raccoglie funzioni tensor-based per operazioni con quaternioni, come la generazione di quaternioni casuali o la differenza tra due quaternioni.
-
-### Models
-In questo modulo sono definite due reti neurali dense a tre layer: la policy, che trasforma le osservazioni nei parametri (media e log-std) di una gaussiana da cui si campionano le azioni, e la value, che – avendo accesso allo stato completo del sistema – stima il valore atteso. Questa stima viene poi confrontata con la ricompensa effettiva per ottenere l’advantage, cioè la misura di quanto l’azione scelta abbia superato (o meno) le aspettative.
-
-### Asset URDF
-Il file URDF descrive la geometria, la massa e le proprietà fisiche del satellite, permettendo a Isaac Gym di caricare un modello realistico e di applicare correttamente forze e coppie di controllo.
-
-### Training
-Lo script di training integra tutti i componenti: legge gli argomenti da riga di comando, costruisce l’ambiente, configura l’algoritmo PPO con i suoi iperparametri, istanzia i modelli di policy e value, impacchetta il tutto in un agente SKRL e avvia il ciclo di apprendimento.
+# Satellite Control using Parallel Deep Reinforcement Learning
 
 ---
 ## Scalability Results
