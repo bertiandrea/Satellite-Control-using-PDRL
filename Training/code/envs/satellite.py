@@ -61,8 +61,8 @@ class Satellite(ADRVecTask):
         self.goal_ang_acc = torch.zeros((self.num_envs, 3), dtype=torch.float, device=self.device)
 
         self.torque_tensor = torch.zeros((self.num_bodies * self.num_envs, 3), device=self.device)
+        self.force_tensor = torch.zeros((self.num_bodies * self.num_envs, 3), device=self.device)
         self.root_indices = torch.arange(self.num_envs, device=self.device, dtype=torch.int) * self.num_bodies
-        self.force_tensor = torch.zeros_like(self.torque_tensor, device=self.device)
 
         if reward_fn is None:
             self.reward_fn: RewardFunction = TestReward()
