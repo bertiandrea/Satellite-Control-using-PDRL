@@ -6,8 +6,6 @@ from code.rewards.satellite_reward import (
     TestReward,
     RewardFunction
 )
-from code.pid.pid import PID
-from code.controller.controller import SatelliteAttitudeController
 
 import isaacgym #BugFix
 import torch
