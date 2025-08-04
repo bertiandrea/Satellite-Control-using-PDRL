@@ -1,13 +1,11 @@
 # satellite.py
 
-from satellite.utils.satellite_util import get_euler_xyz, quat_from_euler_xyz, sample_random_quaternion_batch, quat_diff, quat_diff_rad, quat_axis, quat_mul
-from satellite.envs.vec_task import VecTask, ADRVecTask
-from satellite.rewards.satellite_reward import (
+from code.utils.satellite_util import quat_from_euler_xyz, sample_random_quaternion_batch, quat_diff, quat_diff_rad, quat_axis, quat_mul
+from code.envs.vec_task import VecTask
+from code.rewards.satellite_reward import (
     TestReward,
     RewardFunction
 )
-from satellite.pid.pid import PID
-from satellite.controller.controller import SatelliteAttitudeController
 
 import isaacgym #BugFix
 import torch
@@ -19,7 +17,7 @@ import numpy as np
 BASE_COLORS_SAT  = torch.tensor([[1,0,1], [0,1,1], [1,1,0]], dtype=torch.float)
 BASE_COLORS_GOAL = torch.tensor([[0,0,1], [0,1,0], [1,0,0]], dtype=torch.float)
 
-class Satellite(ADRVecTask):
+class Satellite(VecTask):
     def __init__(self, cfg, rl_device, sim_device, graphics_device_id, headless, virtual_screen_capture, force_render, reward_fn: RewardFunction = None):
         self.dt =                   cfg["sim"].get('dt', 1 / 60.0)                          # seconds
         self.max_episode_length =   int(cfg["env"].get('episode_length_s', 120) / self.dt)  # seconds
@@ -295,7 +293,7 @@ class Satellite(ADRVecTask):
 
         self.in_goal_buf[ids] = 0
         self.goal_reached[ids] = False
-        
+
         ###################################################
         if self.asteroid_enabled:
             for i in ids:
