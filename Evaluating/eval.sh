@@ -63,6 +63,6 @@ else
     exit 1
 fi
 
-python -m satellite.eval --reward-fn "$REWARD_FN"
+python -m code.eval --reward-fn "$REWARD_FN"
 
 exit 0
