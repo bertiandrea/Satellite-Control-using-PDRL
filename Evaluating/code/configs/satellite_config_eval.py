@@ -171,7 +171,8 @@ CONFIG = {
     },
     # --- logging -----------------------------------------------------------
     "log_reward": {
-        "log_reward": False
+        "log_reward": False,
+        "log_reward_interval": 100,  # steps
     },
     # --- explosion ---------------------------------------------------------
     "explosion": {
@@ -187,7 +188,7 @@ CONFIG = {
     },
     # --- randomize masses --------------------------------------------------
     "randomize_masses": {
-        "enabled": False,
+        "enabled": True,
         "mass_std": 5,
     },
 }

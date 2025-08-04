@@ -79,10 +79,7 @@ class Satellite(VecTask):
 
         self.prev_angvel = torch.zeros((self.num_envs, 3), dtype=torch.float, device=self.device)
 
-        if self.discretize_starting_pos:
-            self.goal_quat = sample_random_quaternion_batch(self.device, 1).repeat(self.num_envs, 1)
-        else:
-            self.goal_quat = sample_random_quaternion_batch(self.device, self.num_envs)
+        #self.goal_quat = torch.zeros((self.num_envs, 4), dtype=torch.float, device=self.device)
         self.goal_ang_vel = torch.zeros((self.num_envs, 3), dtype=torch.float, device=self.device)
         self.goal_ang_acc = torch.zeros((self.num_envs, 3), dtype=torch.float, device=self.device)
 
@@ -116,7 +113,11 @@ class Satellite(VecTask):
         self.sat_glob_pos = torch.zeros((self.num_envs, 3), dtype=torch.float, device=self.device)
         
         if self.discretize_starting_pos:
-            self.asset_init_pos_p_all = self.get_discretized_orientations(self.goal_quat)
+            base_quat = sample_random_quaternion_batch(self.device, 1)
+            self.goal_quat = base_quat.repeat(self.num_envs, 1)
+            self.asset_init_pos_r_all = self.get_discretized_orientations(base_quat)
+        else:
+            self.goal_quat = sample_random_quaternion_batch(self.device, self.num_envs)
         
         for i in range(self.num_envs):
             env = self.gym.create_env(self.sim, env_lower, env_upper, num_per_row)
@@ -126,11 +127,11 @@ class Satellite(VecTask):
                                                 device=self.device)
             ###################################################
             if self.discretize_starting_pos:
-                asset_init_pos_p = self.asset_init_pos_p_all[i]
+                asset_init_pos_r = self.asset_init_pos_r_all[i]
             else:
-                asset_init_pos_p = self.asset_init_pos_p
+                asset_init_pos_r = self.asset_init_pos_r
             ###################################################
-            actor_handle = self.create_actor(i, env, self.asset, asset_init_pos_p, self.asset_init_pos_r, 1, self.asset_name)
+            actor_handle = self.create_actor(i, env, self.asset, self.asset_init_pos_p, asset_init_pos_r, 1, self.asset_name)
             ###################################################
             if self.randomize_masses:
                 self.randomize_actor_bodies(env, actor_handle)
