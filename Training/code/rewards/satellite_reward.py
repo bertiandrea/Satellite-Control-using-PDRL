@@ -1,6 +1,6 @@
 # satellite_reward.py
 
-from satellite.utils.satellite_util import quat_diff_rad
+from code.utils.satellite_util import quat_diff_rad
 
 import isaacgym #BugFix
 import torch

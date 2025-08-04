@@ -44,7 +44,8 @@ CONFIG = {
         "threshold_ang_goal": 0.15, # radians
         "threshold_vel_goal": 0.15, # radians/sec
         "overspeed_ang_vel": 3.1416,  # radians/sec
-        "episode_length_s": 60,
+        "goal_time": 10, # seconds        
+        "episode_length_s": 30.0, # seconds
 
         "clipActions": 1.0,
         "clipObservations": 10.0,
@@ -54,6 +55,8 @@ CONFIG = {
         "debug_arrows": False,
 
         "debug_prints": False,
+
+        "discretize_starting_pos": False,
 
         "asset": {
 
@@ -163,7 +166,7 @@ CONFIG = {
     },
     # --- logging -----------------------------------------------------------
     "log_reward": {
-        "log_reward": False,
+        "log_reward": True,
         "log_reward_interval": 100,
     },
 }

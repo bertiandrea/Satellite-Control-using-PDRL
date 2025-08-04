@@ -1,11 +1,11 @@
 # train.py
 
-from satellite.configs.satellite_config import CONFIG
-from satellite.envs.satellite import Satellite
-from satellite.models.custom_model import Policy, Value, Shared
-from satellite.envs.wrappers.isaacgym_envs_wrapper import IsaacGymWrapper
-from satellite.CAPS.agent_wrapper_CAPS import PPOWrapperCAPS
-from satellite.rewards.satellite_reward import (
+from code.configs.satellite_config import CONFIG
+from code.envs.satellite import Satellite
+from code.models.custom_model import Policy, Value, Shared
+from code.envs.wrappers.isaacgym_envs_wrapper import IsaacGymWrapper
+from code.CAPS.agent_wrapper_CAPS import PPOWrapperCAPS
+from code.rewards.satellite_reward import (
     TestReward,
     TestRewardSpin,
     TestRewardCurriculum,

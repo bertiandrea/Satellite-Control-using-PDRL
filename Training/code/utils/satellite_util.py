@@ -3,10 +3,10 @@
 import isaacgym #BugFix
 import torch
 
-import numpy as np
+from typing import Tuple
 
 @torch.jit.script
-def get_euler_xyz(q):
+def get_euler_xyz(q: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     qx, qy, qz, qw = 0, 1, 2, 3
     # roll (x-axis rotation)
     sinr_cosp = 2.0 * (q[:, qw] * q[:, qx] + q[:, qy] * q[:, qz])
@@ -16,8 +16,7 @@ def get_euler_xyz(q):
 
     # pitch (y-axis rotation)
     sinp = 2.0 * (q[:, qw] * q[:, qy] - q[:, qz] * q[:, qx])
-    pitch = torch.where(torch.abs(sinp) >= 1, np.copysign(
-        np.pi / 2.0, sinp), torch.asin(sinp))
+    pitch = torch.where(torch.abs(sinp) >= 1, torch.sign(sinp) * (torch.pi / 2.0), torch.asin(sinp))
 
     # yaw (z-axis rotation)
     siny_cosp = 2.0 * (q[:, qw] * q[:, qz] + q[:, qx] * q[:, qy])
@@ -25,7 +24,7 @@ def get_euler_xyz(q):
         q[:, qx] - q[:, qy] * q[:, qy] - q[:, qz] * q[:, qz]
     yaw = torch.atan2(siny_cosp, cosy_cosp)
 
-    return roll % (2*np.pi), pitch % (2*np.pi), yaw % (2*np.pi)
+    return roll % (2*torch.pi), pitch % (2*torch.pi), yaw % (2*torch.pi)
 
 @torch.jit.script
 def quat_from_euler_xyz(yaw: torch.Tensor, pitch: torch.Tensor, roll: torch.Tensor) -> torch.Tensor:

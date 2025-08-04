@@ -12,12 +12,10 @@ from skrl.resources.schedulers.torch import KLAdaptiveRL
 NUM_ENVS = 4096
 N_EPOCHS = 1250
 HEADLESS = False
-FORCE_RENDER = False
 PROFILE = False
 DEBUG_ARROWS = False
 DEBUG_PRINTS = False
 HEARTBEAT = False
-TESTING = False
 
 ROLLOUTS = 16
 
@@ -33,7 +31,7 @@ CONFIG = {
     "graphics_device_id": 0,
     "headless": HEADLESS,
     "virtual_screen_capture": False,
-    "force_render": FORCE_RENDER,
+    "force_render": False,
 
     "profile": PROFILE,
 
@@ -50,9 +48,6 @@ CONFIG = {
         "numActions": 3,
 
         "envSpacing": 3.0,
-        
-        #"sensor_noise_std": 0.0,
-        #"actuation_noise_std": 0.0,
 
         "threshold_ang_goal": 0.15, # radians
         "threshold_vel_goal": 0.15, # radians/sec
@@ -69,7 +64,7 @@ CONFIG = {
         
         "debug_prints": DEBUG_PRINTS,
         
-        "discretize_starting_pos": TESTING,
+        "discretize_starting_pos": False,
 
         "asset": {
 
@@ -197,14 +192,6 @@ CONFIG = {
             "rollouts": ROLLOUTS,
         },
     },
-
-    # --- low-level controllers --------------------------------------------
-    "controller": {
-        "controller_logic": False
-    },
-    "pid": {
-        "rate": {"kp": 0.5, "ki": 0.0, "kd": 0.1},
-    },
     # --- logging -----------------------------------------------------------
     "log_reward": {
         "log_reward": True,
@@ -216,23 +203,6 @@ CONFIG = {
         "lambda_temporal_smoothness": 0.0,  # λ_t
         "lambda_spatial_smoothness": 0.0,   # λ_s
         "noise_std": 0.00,                  # σ
-    },
-    # --- explosion ---------------------------------------------------------
-    "explosion": {
-        "enabled": TESTING,
-        "explosion_time": 3,  # seconds
-    },
-    # --- asteroid ----------------------------------------------------------
-    "asteroid": {
-        "enabled": TESTING,
-        "object_mass": 0.0,  # kg
-        "object_mass_std": 0.0,  # kg
-        "object_mass_time": 120,  # seconds
-    },
-    # --- randomize masses --------------------------------------------------
-    "randomize_masses": {
-        "enabled": False,
-        "mass_std": 5,
     },
     # --- dr_randomization -------------------------------------------------
     "dr_randomization": {
