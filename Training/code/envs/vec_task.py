@@ -23,7 +23,7 @@ import random
 import operator, random
 from copy import deepcopy
 from collections import deque
-from satellite.utils.dr_utils import get_property_setter_map, get_property_getter_map, get_default_setter_args, \
+from code.utils.dr_utils import get_property_setter_map, get_property_getter_map, get_default_setter_args, \
                 apply_random_samples, check_buckets, nested_dict_set_attr, modify_adr_param
 
 class RolloutWorkerModes:

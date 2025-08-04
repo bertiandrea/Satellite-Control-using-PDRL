@@ -64,6 +64,6 @@ else
 fi
 
 # Avvia il training con la reward function scelta
-python -m satellite.train --reward-fn "$REWARD_FN"
+python -m code.train --reward-fn "$REWARD_FN"
 
 exit 0
