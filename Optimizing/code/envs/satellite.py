@@ -28,8 +28,6 @@ class Satellite(VecTask):
         self.asset_file =           cfg["env"]["asset"].get('assetFileName', 'satellite.urdf')
         self.asset_init_pos_p =     cfg["env"]["asset"].get('init_pos_p', [0.0, 0.0, 0.0])
         self.asset_init_pos_r =     cfg["env"]["asset"].get('init_pos_r', [0.0, 0.0, 0.0, 1.0])
-        self.actuation_noise_std =  cfg["env"].get('actuation_noise_std', 0.0)
-        self.sensor_noise_std =     cfg["env"].get('sensor_noise_std', 0.0)
         self.torque_scale =         cfg["env"].get('torque_scale', 1.0)
         self.threshold_ang_goal =   cfg["env"].get('threshold_ang_goal', 0.01745)           # radians
         self.threshold_vel_goal =   cfg["env"].get('threshold_vel_goal', 0.01745)           # radians/sec
