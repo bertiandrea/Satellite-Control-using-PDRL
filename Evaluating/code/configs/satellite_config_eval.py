@@ -191,4 +191,11 @@ CONFIG = {
         "enabled": True,
         "mass_std": 5,
     },
+    # --- low-level controller --------------------------------------------
+    "controller": {
+        "controller_logic": False
+    },
+    "pid": {
+        "rate": {"kp": 0.5, "ki": 0.0, "kd": 0.1},
+    },
 }

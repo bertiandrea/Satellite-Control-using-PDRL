@@ -1,11 +1,13 @@
 # satellite.py
 
-from code.utils.satellite_util import quat_from_euler_xyz, sample_random_quaternion_batch, quat_diff, quat_diff_rad, quat_axis, quat_mul
+from code.utils.satellite_util import get_euler_xyz, quat_from_euler_xyz, sample_random_quaternion_batch, quat_diff, quat_diff_rad, quat_axis, quat_mul
 from code.envs.vec_task import VecTask
 from code.rewards.satellite_reward import (
     TestReward,
     RewardFunction
 )
+from code.controller.pid.pid import PID
+from code.controller.controller import Controller
 
 import isaacgym #BugFix
 import torch
@@ -98,6 +100,23 @@ class Satellite(VecTask):
         self.already_tested = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
         self.goal_reached = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
         ###################################################
+
+        self.controller_logic = cfg["controller"].get("controller_logic", False)
+        if self.controller_logic:
+            self.pid = PID(
+                num_envs=self.num_envs,
+                device=self.device,
+                dt=self.dt,
+                kp=cfg["pid"]["rate"].get("kp", 1.0),
+                ki=cfg["pid"]["rate"].get("ki", 0.1),
+                kd=cfg["pid"]["rate"].get("kd", 0.01),
+            )
+            self.controller = Controller(
+                torque_tau=cfg["controller"].get("torque_tau", 0.02),
+                pid=self.pid,
+                num_envs=self.num_envs,
+                device=self.device,
+            )
 
     def create_sim(self) -> None:
         self.sim = super().create_sim(self.device_id, self.graphics_device_id, self.physics_engine, self.sim_params) # Acquires the sim pointer
@@ -303,6 +322,11 @@ class Satellite(VecTask):
                     self.already_tested[i.item()] = True
         ###################################################
 
+        ###################################################
+        if self.controller_logic:
+            self.controller.reset(ids)
+        ###################################################
+
 
     ################################################################################################################################
                 
@@ -311,7 +335,18 @@ class Satellite(VecTask):
         if len(self.reset_ids) > 0:
             self.reset_idx(self.reset_ids)
     
-    def apply_torque(self) -> None:       
+    def apply_torque(self) -> None:
+        ############## CONTROLLER ###############
+        if self.controller_logic:
+            pid_actions = self.controller.compute_control(
+                measure=get_euler_xyz(self.satellite_quats),
+                target=get_euler_xyz(self.goal_quat)
+            )
+            self.writer.add_scalar('Actions/PID_action_X', pid_actions[0, 0].item(), global_step=self.control_steps)
+            self.writer.add_scalar('Actions/PID_action_Y', pid_actions[0, 1].item(), global_step=self.control_steps)
+            self.writer.add_scalar('Actions/PID_action_Z', pid_actions[0, 2].item(), global_step=self.control_steps)
+        #########################################
+             
         self.actions = torch.mul(self.actions, self.torque_scale)
 
         if self.actuation_noise_std > 0.0:

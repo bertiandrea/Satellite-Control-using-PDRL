@@ -3,7 +3,7 @@
 import isaacgym #BugFix
 import torch
 
-class SatelliteAttitudeController:
+class Controller:
     def __init__(self, torque_tau, pid, num_envs, device):
         self.num_envs = num_envs
         self.device = device
