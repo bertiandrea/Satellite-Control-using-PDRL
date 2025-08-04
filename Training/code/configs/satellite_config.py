@@ -53,6 +53,7 @@ CONFIG = {
         "threshold_vel_goal": 0.15, # radians/sec
         "overspeed_ang_vel": 0.50,  # radians/sec
         "goal_time": 10, # seconds
+        "sparse_reward": 100.0, # reward for reaching the goal
         "episode_length_s": 120.0, # seconds
 
         "clipActions": 1.0,
@@ -65,7 +66,7 @@ CONFIG = {
         "debug_prints": DEBUG_PRINTS,
         
         "discretize_starting_pos": False,
-
+        
         "asset": {
 
             "assetRoot": str(Path(__file__).resolve().parent.parent),
