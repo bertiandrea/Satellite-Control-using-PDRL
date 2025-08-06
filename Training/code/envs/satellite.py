@@ -248,9 +248,16 @@ class Satellite(ADRVecTask):
             self.goal_quat, self.goal_ang_vel, self.goal_ang_acc,
             self.actions
         )
+        # Sparse reward for reaching the goal
+        self.rew_buf = torch.where(
+            torch.ne(self.in_goal_buf, 0),
+            torch.add(self.rew_buf, self.sparse_reward),
+            self.rew_buf
+        )
+        # Sparse reward for staying in the goal
         self.rew_buf = torch.where(
             self.goal_reached,
-            torch.add(self.rew_buf, self.sparse_reward),
+            torch.add(self.rew_buf, self.sparse_reward * self.goal_time),
             self.rew_buf
         )
         self.episode_rew_buf += self.rew_buf

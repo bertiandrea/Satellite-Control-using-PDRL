@@ -51,15 +51,15 @@ CONFIG = {
 
         "threshold_ang_goal": 0.015, # radians
         "threshold_vel_goal": 0.015, # radians/sec
-        "overspeed_ang_vel": 0.18,  # radians/sec
+        "overspeed_ang_vel": 3.14,  # radians/sec
         "goal_time": 10, # seconds
         "sparse_reward": 100.0, # reward for reaching the goal
-        "episode_length_s": 20.0, # seconds
+        "episode_length_s": 60.0, # seconds
 
         "clipActions": 1.0,
         "clipObservations": 10.0,
 
-        "torque_scale": 100.0,
+        "torque_scale": 1000.0,
 
         "debug_arrows": DEBUG_ARROWS,
         
