@@ -207,7 +207,7 @@ class TestRewardCurriculum(RewardFunction):
     """
     def __init__(self, log_reward, log_reward_interval):
         super().__init__(log_reward, log_reward_interval)
-        self.changing_steps = [2000, 4000, 6000, 8000, 10000]
+        self.changing_steps = [5000, 10000, 15000, 20000, 25000]
         self.alpha_q = [1.0, 10.0, 25.0, 50.0, 100.0]
         self.alpha_omega = [0.0, 0.0, 0.0, 0.0, 0.0]
         self.alpha_acc = [0.0, 0.0, 0.0, 0.0, 0.0]
