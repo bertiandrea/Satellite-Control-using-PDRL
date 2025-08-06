@@ -13,8 +13,8 @@ NUM_ENVS = 4096
 N_EPOCHS = 1250
 HEADLESS = False
 PROFILE = False
-DEBUG_ARROWS = False
-DEBUG_PRINTS = False
+DEBUG_ARROWS = True
+DEBUG_PRINTS = True
 HEARTBEAT = False
 
 ROLLOUTS = 16
@@ -49,12 +49,12 @@ CONFIG = {
 
         "envSpacing": 3.0,
 
-        "threshold_ang_goal": 0.15, # radians
-        "threshold_vel_goal": 0.15, # radians/sec
-        "overspeed_ang_vel": 0.50,  # radians/sec
+        "threshold_ang_goal": 0.015, # radians
+        "threshold_vel_goal": 0.015, # radians/sec
+        "overspeed_ang_vel": 0.18,  # radians/sec
         "goal_time": 10, # seconds
         "sparse_reward": 100.0, # reward for reaching the goal
-        "episode_length_s": 120.0, # seconds
+        "episode_length_s": 20.0, # seconds
 
         "clipActions": 1.0,
         "clipObservations": 10.0,
@@ -207,7 +207,7 @@ CONFIG = {
     },
     # --- dr_randomization -------------------------------------------------
     "dr_randomization": {
-        "enabled": True,
+        "enabled": False,
         "automatic": True,
         "dr_params": {
             "observations": {
@@ -226,13 +226,6 @@ CONFIG = {
                 "satellite": {
                     "color": True,
                     "rigid_body_properties": {
-                        "mass": {
-                            "distribution": "uniform",
-                            "operation": "scaling",
-                            "range": [0.5, 1.5],
-                            "schedule": "linear",
-                            "schedule_steps": 1,
-                        },
                         "inertia": {
                             "distribution": "uniform",
                             "operation": "scaling",
@@ -245,11 +238,6 @@ CONFIG = {
             }
         },
         "adr" : {
-            "update_adr_ranges": True,
-            "clear_other_queues": False,
-            "adr_extended_boundary_sample": False,
-            "adr_load_from_checkpoint": False,
-
             "worker_adr_boundary_fraction": 0.4,
 
             "adr_queue_threshold_length": NUM_ENVS // 2,  # Number of samples to accumulate before adjusting the range
@@ -258,21 +246,12 @@ CONFIG = {
             "adr_objective_threshold_high": 5.0,
 
             "adr_rollout_perf_alpha": 0.99,
-            "adr_params": {
-                "object_mass": {
-                    "range_path": 'actor_params.satellite.rigid_body_properties.mass.range',
-                    "init_range": [0.9, 1.1],
-                    "limits": [0.5, 1.5],
-                    "delta": 1.1,
-                    "delta_style": 'multiplicative',
-                },
-                "object_inertia": {
-                    "range_path": 'actor_params.satellite.rigid_body_properties.inertia.range',
-                    "init_range": [0.9, 1.1],
-                    "limits": [0.5, 1.5],
-                    "delta": 1.1,
-                    "delta_style": 'multiplicative',
-                }
+            "adr_param": {
+                "range_path": 'actor_params.satellite.rigid_body_properties.inertia.range',
+                "init_range": [0.9, 1.1],
+                "limits": [0.5, 1.5],
+                "delta": 1.1,
+                "delta_style": 'multiplicative',
             }
         }
     }

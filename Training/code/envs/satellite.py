@@ -32,12 +32,11 @@ class Satellite(ADRVecTask):
         self.threshold_ang_goal =   cfg["env"].get('threshold_ang_goal', 0.01745)           # radians
         self.threshold_vel_goal =   cfg["env"].get('threshold_vel_goal', 0.01745)           # radians/sec
         self.goal_time =            cfg["env"].get('goal_time', 10) / self.dt               # seconds
+        self.sparse_reward =        cfg["env"].get('sparse_reward', 100.0)
         self.overspeed_ang_vel =    cfg["env"].get('overspeed_ang_vel', 0.78540)            # radians/sec
         self.debug_arrows =         cfg["env"].get('debug_arrows', False)
         self.debug_prints =         cfg["env"].get('debug_prints', False)
         self.heartbeat =            cfg.get('heartbeat', False)
-
-        self.sparse_reward =        cfg["env"].get('sparse_reward', 100.0)
 
         super().__init__(config=cfg, rl_device=rl_device, sim_device=sim_device, graphics_device_id=graphics_device_id, headless=headless, virtual_screen_capture=virtual_screen_capture, force_render=force_render)
 

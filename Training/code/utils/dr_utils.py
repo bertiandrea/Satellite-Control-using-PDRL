@@ -7,6 +7,13 @@ import isaacgym #BugFix
 import torch
 from isaacgym import gymtorch, gymapi
 
+def set_value_by_path(target, path, value):
+    pre, _ , post = path.partition('.')
+    if post:
+        set_value_by_path(target[pre], post, value)
+    else:
+        target[path] = value
+        
 def get_property_setter_map(gym):
     property_to_setters = {
         "dof_properties": gym.set_actor_dof_properties,
@@ -90,7 +97,6 @@ def generate_random_samples(attr_randomization_params, shape, curr_gym_step_coun
     
     return sample
 
-
 def get_bucketed_val(new_prop_val, attr_randomization_params):
     if attr_randomization_params['distribution'] == 'uniform':
         lo, hi = attr_randomization_params['range'][0], attr_randomization_params['range'][1]
@@ -100,7 +106,6 @@ def get_bucketed_val(new_prop_val, attr_randomization_params):
     num_buckets = attr_randomization_params['num_buckets']
     buckets = [(hi - lo) * i / num_buckets + lo for i in range(num_buckets)]
     return buckets[bisect(buckets, new_prop_val) - 1]
-
 
 def apply_random_samples(prop, og_prop, attr, attr_randomization_params, curr_gym_step_count, extern_sample=None, bucketing_randomization_params=None):
     if isinstance(prop, gymapi.SimParams):
@@ -154,39 +159,6 @@ def apply_random_samples(prop, og_prop, attr, attr_randomization_params, curr_gy
                 new_prop_val = get_bucketed_val(new_prop_val, bucketing_randomization_params)
         
         setattr(prop, attr, new_prop_val)
-
-def check_buckets(gym, envs, dr_params):
-    total_num_buckets = 0
-    for actor, actor_properties in dr_params["actor_params"].items():
-        cur_num_buckets = 0
-        if 'rigid_shape_properties' in actor_properties.keys():
-            prop_attrs = actor_properties['rigid_shape_properties']
-            if 'restitution' in prop_attrs and 'num_buckets' in prop_attrs['restitution']:
-                cur_num_buckets = prop_attrs['restitution']['num_buckets']
-            if 'friction' in prop_attrs and 'num_buckets' in prop_attrs['friction']:
-                if cur_num_buckets > 0:
-                    cur_num_buckets *= prop_attrs['friction']['num_buckets']
-                else:
-                    cur_num_buckets = prop_attrs['friction']['num_buckets']
-            total_num_buckets += cur_num_buckets
-    assert total_num_buckets <= 64000, 'Explicit material bucketing has been specified, but the provided total bucket count exceeds 64K: {} specified buckets'.format(total_num_buckets)
-    
-    shape_ct = 0
-    for env in envs:
-        for i in range(gym.get_actor_count(env)):
-            actor_handle = gym.get_actor_handle(env, i)
-            actor_name = gym.get_actor_name(env, actor_handle)
-            if actor_name in dr_params["actor_params"] and 'rigid_shape_properties' in dr_params["actor_params"][actor_name]:
-                shape_ct += gym.get_actor_rigid_shape_count(env, actor_handle)
-    assert shape_ct <= 64000 or total_num_buckets > 0, 'Explicit material bucketing is not used but the total number of shapes exceeds material limit. Please specify bucketing to limit material count.'
-
-
-def nested_dict_set_attr(d, key, val):
-    pre, _, post = key.partition('.')
-    if post:
-        nested_dict_set_attr(d[pre], post, val)
-    else:
-        d[key] = val
 
 def modify_adr_param(param, direction, adr_param_dict, param_limit=None):
     op = adr_param_dict["delta_style"]
