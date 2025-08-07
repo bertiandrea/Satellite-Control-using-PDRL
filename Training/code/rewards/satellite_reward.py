@@ -105,19 +105,20 @@ class TestRewardCurriculum(RewardFunction):
     """
     Simple test reward: weighted inverse errors with dynamic scaling.
     """
-    def __init__(self, log_reward, log_reward_interval):
+    def __init__(self, log_reward, log_reward_interval, alpha_q=10.0, alpha_omega=0.0, alpha_acc=0.0):
         super().__init__(log_reward, log_reward_interval)
         self.changing_steps = [5000, 10000, 15000, 20000, 100000]
-        self.alpha_q = [1.0, 10.0, 25.0, 50.0, 100.0]
-        self.alpha_omega = [0.0, 0.0, 0.0, 0.0, 0.0]
-        self.alpha_acc = [0.0, 0.0, 0.0, 0.0, 0.0]
+        self.k = [1.0, 10.0, 25.0, 50.0, 100.0]
+        self.alpha_q = alpha_q
+        self.alpha_omega = alpha_omega
+        self.alpha_acc = alpha_acc
         self.prev_actions = None
 
-    def get_current_weights(self, global_step, changing_steps):
-        for i, step in enumerate(changing_steps):
-            if global_step < step:
-                return self.alpha_q[i], self.alpha_omega[i], self.alpha_acc[i]
-        return self.alpha_q[-1], self.alpha_omega[-1], self.alpha_acc[-1]
+    def get_current_k(self):
+        for i, step in enumerate(self.changing_steps):
+            if self.global_step < step:
+                return self.k[i]
+        return self.k[-1]
     
     def compute(self, quats, ang_vels, ang_accs, goal_quat, goal_ang_vel, goal_ang_acc, actions):
         # attitude error [0-infinity] (radians)
@@ -135,26 +136,26 @@ class TestRewardCurriculum(RewardFunction):
         assert not torch.isnan(acc_err).any(), "acc_err has NaN"
         assert not torch.isinf(acc_err).any(), "acc_err has Inf"
 
-        alpha_q, alpha_omega, alpha_acc = self.get_current_weights(self.global_step, self.changing_steps)
+        k = self.get_current_k()
 
         r_q      = torch.mul(
-            alpha_q,
-            torch.exp(-torch.square(phi))
+            self.alpha_q,
+            torch.exp(-torch.square(phi) * k)
         )
 
         r_omega  = torch.mul(
             r_q,
             torch.mul(
-                alpha_omega,
-                torch.exp(-torch.square(omega_err))
+                self.alpha_omega,
+                torch.exp(-torch.square(omega_err) * k)
             )
         )
 
         r_acc    = torch.mul(
             r_q,
             torch.mul(
-                alpha_acc,  
-                torch.exp(-torch.square(acc_err))
+                self.alpha_acc,  
+                torch.exp(-torch.square(acc_err) * k)
             )
         )
 
