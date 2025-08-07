@@ -7,7 +7,6 @@ from code.envs.wrappers.isaacgym_envs_wrapper import IsaacGymWrapper
 from code.CAPS.agent_wrapper_CAPS import PPOWrapperCAPS
 from code.rewards.satellite_reward import (
     TestReward,
-    TestRewardSpin,
     TestRewardCurriculum,
     WeightedSumReward,
     TwoPhaseReward,
@@ -39,7 +38,6 @@ import pandas as pd
 
 REWARD_MAP = {
     "test": TestReward,
-    "test_spin": TestRewardSpin,
     "test_curriculum": TestRewardCurriculum,
     "weighted_sum": WeightedSumReward,
     "two_phase": TwoPhaseReward,
