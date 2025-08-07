@@ -14,7 +14,7 @@ N_EPOCHS = 2500
 HEADLESS = False
 PROFILE = False
 DEBUG_ARROWS = True
-DEBUG_PRINTS = True
+DEBUG_PRINTS = False
 HEARTBEAT = False
 
 ROLLOUTS = 16
@@ -49,8 +49,8 @@ CONFIG = {
 
         "envSpacing": 3.0,
 
-        "threshold_ang_goal": 0.015, # radians
-        "threshold_vel_goal": 0.015, # radians/sec
+        "threshold_ang_goal": 0.01, # radians
+        "threshold_vel_goal": 0.01, # radians/sec
         "overspeed_ang_vel": 3.14,  # radians/sec
         "goal_time": 10, # seconds
         "sparse_reward": 100.0, # reward for reaching the goal
@@ -156,17 +156,17 @@ CONFIG = {
             "mini_batches": 2,
             
             "learning_rate_scheduler" : KLAdaptiveRL,
-            "learning_rate_scheduler_kwargs" : {"kl_threshold": 0.016},
+            "learning_rate_scheduler_kwargs" : {"kl_threshold": 0.01},
             "state_preprocessor" : RunningStandardScaler,
             "value_preprocessor" : RunningStandardScaler,
-            "rewards_shaper" : lambda rewards, timestep, timesteps: rewards * 0.1,
+            "rewards_shaper" : None,
 
             "discount_factor" : 0.99, #(γ) Future reward discount; balances immediate versus long-term return.
             "learning_rate" : 1e-3, #Step size for optimizer (e.g. Adam) when updating policy and value networks.
-            "grad_norm_clip" : 1.0, #Maximum norm value to clip gradients, preventing exploding gradients.
+            "grad_norm_clip" : 0.5, #Maximum norm value to clip gradients, preventing exploding gradients.
             "ratio_clip" : 0.2, #(ϵ) PPO’s clipping threshold on the policy probability ratio to constrain updates.
             "value_clip" : 0.2, #Clipping range for value function targets to stabilize value updates.
-            "clip_predicted_values" : True, #If enabled, clips the new value predictions to lie within the range defined by value_clip around the old predictions.
+            "clip_predicted_values" : False, #If enabled, clips the new value predictions to lie within the range defined by value_clip around the old predictions.
             "entropy_loss_scale" : 0.00, #Coefficient multiplying the entropy bonus; encourages exploration when > 0.
             "value_loss_scale" : 1.0, #Coefficient weighting the value function loss in the total loss.
             "kl_threshold" : 0, #Optional early-stop threshold on KL divergence between old and new policies (0 disables).
@@ -208,15 +208,15 @@ CONFIG = {
     # --- dr_randomization -------------------------------------------------
     "dr_randomization": {
         "enabled": False,
-        "automatic": True,
+        "automatic": False,
         "dr_params": {
             "observations": {
-                "range": [-0.01, 0.01],
+                "range": [-0.1, 0.1],
                 "operation": "additive",
                 "distribution": "gaussian"
             },
             "actions": {
-                "range": [-0.01, 0.01],
+                "range": [-0.1, 0.1],
                 "operation": "additive",
                 "distribution": "gaussian"
             },
