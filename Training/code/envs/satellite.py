@@ -3,7 +3,7 @@
 from code.utils.satellite_util import get_euler_xyz, quat_from_euler_xyz, sample_random_quaternion_batch, quat_diff, quat_diff_rad, quat_axis, quat_mul
 from code.envs.vec_task import VecTask, ADRVecTask
 from code.rewards.satellite_reward import (
-    TestReward,
+    SimpleReward,
     RewardFunction
 )
 
@@ -66,7 +66,7 @@ class Satellite(ADRVecTask):
         self.root_indices = torch.arange(self.num_envs, device=self.device, dtype=torch.int) * self.num_bodies
 
         if reward_fn is None:
-            self.reward_fn: RewardFunction = TestReward()
+            self.reward_fn: RewardFunction = SimpleReward()
         else:
             self.reward_fn = reward_fn
         

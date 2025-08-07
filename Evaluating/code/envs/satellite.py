@@ -3,7 +3,7 @@
 from code.utils.satellite_util import get_euler_xyz, quat_from_euler_xyz, sample_random_quaternion_batch, quat_diff, quat_diff_rad, quat_axis, quat_mul
 from code.envs.vec_task import VecTask
 from code.rewards.satellite_reward import (
-    TestReward,
+    SimpleReward,
     RewardFunction
 )
 from code.controller.pid.pid import PID
@@ -93,7 +93,7 @@ class Satellite(VecTask):
         self.impulse = torch.zeros((self.num_envs, 3), dtype=torch.float, device=self.device)
 
         if reward_fn is None:
-            self.reward_fn: RewardFunction = TestReward()
+            self.reward_fn: RewardFunction = SimpleReward()
         else:
             self.reward_fn = reward_fn
         
@@ -401,7 +401,7 @@ class Satellite(VecTask):
 
         if self.sensor_noise_std > 0.0:
             noise = torch.normal(mean=0.0, std=self.sensor_noise_std, size=self.state_space.shape, device=self.device)
-            self.obs_buf = torch.add(self.obs_buf, noise[:, :self.num_observations])
+            self.obs_buf = torch.add(self.obs_buf, noise[:self.num_observations])
 
         ########################################
         assert not torch.isnan(self.obs_buf).any(), f"self.obs_buf has NaN: {self.actions, self.obs_buf}"
