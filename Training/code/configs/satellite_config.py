@@ -152,8 +152,8 @@ CONFIG = {
         "PPO": {
             "num_envs": NUM_ENVS,
             "rollouts": ROLLOUTS,
-            "learning_epochs": 16,
-            "mini_batches": 16,
+            "learning_epochs": 8,
+            "mini_batches": 2,
             
             "learning_rate_scheduler" : KLAdaptiveRL,
             "learning_rate_scheduler_kwargs" : {"kl_threshold": 0.016},
