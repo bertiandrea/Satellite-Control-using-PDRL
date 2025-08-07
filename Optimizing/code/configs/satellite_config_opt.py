@@ -41,9 +41,9 @@ CONFIG = {
 
         "envSpacing": 3.0,
 
-        "threshold_ang_goal": 0.15, # radians
-        "threshold_vel_goal": 0.15, # radians/sec
-        "overspeed_ang_vel": 3.1416,  # radians/sec
+        "threshold_ang_goal": 0.01, # radians
+        "threshold_vel_goal": 0.01, # radians/sec
+        "overspeed_ang_vel": 3.14,  # radians/sec
         "goal_time": 10, # seconds        
         "sparse_reward": 100.0, # reward for reaching the goal
         "episode_length_s": 30.0, # seconds
@@ -51,7 +51,7 @@ CONFIG = {
         "clipActions": 1.0,
         "clipObservations": 10.0,
 
-        "torque_scale": 100.0,
+        "torque_scale": 1000.0,
 
         "debug_arrows": False,
 
@@ -145,7 +145,7 @@ CONFIG = {
             "num_envs": NUM_ENVS,
             "rollouts": ROLLOUTS,
             "learning_epochs": 8,
-            "mini_batches": 8,
+            "mini_batches": 2,
             
             "experiment": {
                 "write_interval": "auto",

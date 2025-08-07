@@ -7,7 +7,7 @@ import isaacgym
 import torch
 
 NUM_ENVS = 4096
-N_EPOCHS = 1250
+N_EPOCHS = 1000
 HEADLESS = False
 DEBUG_ARROWS = True
 ROLLOUTS = 16
@@ -42,12 +42,12 @@ CONFIG = {
 
         "envSpacing": 3.0,
         
-        "sensor_noise_std": 1.0,
-        "actuation_noise_std": 1.0,
+        "sensor_noise_std": 0.0,
+        "actuation_noise_std": 0.0,
 
-        "threshold_ang_goal": 0.15, # radians
-        "threshold_vel_goal": 0.15, # radians/sec
-        "overspeed_ang_vel": 3.1416,  # radians/sec
+        "threshold_ang_goal": 0.01, # radians
+        "threshold_vel_goal": 0.01, # radians/sec
+        "overspeed_ang_vel": 3.14,  # radians/sec
         "goal_time": 10, # seconds
         "sparse_reward": 100.0, # reward for reaching the goal
         "episode_length_s": 30.0, # seconds
@@ -55,7 +55,7 @@ CONFIG = {
         "clipActions": 1.0,
         "clipObservations": 10.0,
 
-        "torque_scale": 100.0,
+        "torque_scale": 1000.0,
 
         "debug_arrows": DEBUG_ARROWS,
         
@@ -174,19 +174,19 @@ CONFIG = {
     },
     # --- explosion ---------------------------------------------------------
     "explosion": {
-        "enabled": True,
+        "enabled": False,
         "explosion_time": 3,  # seconds
     },
     # --- asteroid ----------------------------------------------------------
     "asteroid": {
-        "enabled": True,
+        "enabled": False,
         "object_mass": 0.0,  # kg
         "object_mass_std": 0.0,  # kg
         "object_mass_time": 120,  # seconds
     },
     # --- randomize masses --------------------------------------------------
     "randomize_masses": {
-        "enabled": True,
+        "enabled": False,
         "mass_std": 5,
     },
     # --- low-level controller --------------------------------------------

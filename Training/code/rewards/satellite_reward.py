@@ -38,7 +38,7 @@ class RewardFunction(ABC):
         """
         pass
 
-class TestReward(RewardFunction):
+class SimpleReward(RewardFunction):
     """
     Simple test reward: weighted inverse errors with dynamic scaling.
     """
@@ -101,9 +101,9 @@ class TestReward(RewardFunction):
 
         return reward
 
-class TestRewardCurriculum(RewardFunction):
+class CurriculumReward(RewardFunction):
     """
-    Simple test reward: weighted inverse errors with dynamic scaling.
+    Curriculum reward: weighted inverse errors with dynamic scaling based on global step.
     """
     def __init__(self, log_reward, log_reward_interval, alpha_q=10.0, alpha_omega=0.0, alpha_acc=0.0):
         super().__init__(log_reward, log_reward_interval)

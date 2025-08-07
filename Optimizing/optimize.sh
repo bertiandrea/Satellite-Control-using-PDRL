@@ -2,7 +2,7 @@
 
 DISPLAY_NUM=${1:-99}            # Numero del display, default 99
 CONDA_ENV=${2:-rlgpu}           # Nome dell'ambiente Conda, default "rlgpu"
-REWARD_FN=${3:-test}            # Reward function da passare, default "test"
+REWARD_FN=${3:-simple}            # Reward function da passare, default "simple"
 SCREEN_RES="1920x1080x24"
 
 export DISPLAY=:$DISPLAY_NUM

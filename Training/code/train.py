@@ -6,8 +6,8 @@ from code.models.custom_model import Policy, Value, Shared
 from code.envs.wrappers.isaacgym_envs_wrapper import IsaacGymWrapper
 from code.CAPS.agent_wrapper_CAPS import PPOWrapperCAPS
 from code.rewards.satellite_reward import (
-    TestReward,
-    TestRewardCurriculum,
+    SimpleReward,
+    CurriculumReward,
     WeightedSumReward,
     TwoPhaseReward,
     ExponentialStabilizationReward,
@@ -37,8 +37,8 @@ import pandas as pd
 # ──────────────────────────────────────────────────────────────────────────────
 
 REWARD_MAP = {
-    "test": TestReward,
-    "test_curriculum": TestRewardCurriculum,
+    "simple": SimpleReward,
+    "curriculum": CurriculumReward,
     "weighted_sum": WeightedSumReward,
     "two_phase": TwoPhaseReward,
     "exp_stabilization": ExponentialStabilizationReward,

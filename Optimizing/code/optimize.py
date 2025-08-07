@@ -5,9 +5,8 @@ from code.envs.satellite import Satellite
 from code.models.custom_model import Policy, Value, Shared
 from code.envs.wrappers.isaacgym_envs_wrapper import IsaacGymWrapper
 from code.rewards.satellite_reward import (
-    TestReward,
-    TestRewardSpin,
-    TestRewardCurriculum,
+    SimpleReward,
+    CurriculumReward,
     WeightedSumReward,
     TwoPhaseReward,
     ExponentialStabilizationReward,
@@ -37,9 +36,8 @@ N_TRIALS = 25
 # ──────────────────────────────────────────────────────────────────────────────
 
 REWARD_MAP = {
-    "test": TestReward,
-    "test_spin": TestRewardSpin,
-    "test_curriculum": TestRewardCurriculum,
+    "simple": SimpleReward,
+    "curriculum": CurriculumReward,
     "weighted_sum": WeightedSumReward,
     "two_phase": TwoPhaseReward,
     "exp_stabilization": ExponentialStabilizationReward,

@@ -38,7 +38,7 @@ class RewardFunction(ABC):
         """
         pass
 
-class TestReward(RewardFunction):
+class SimpleReward(RewardFunction):
     """
     Simple test reward: weighted inverse errors with dynamic scaling.
     """
@@ -64,36 +64,24 @@ class TestReward(RewardFunction):
         assert not torch.isnan(acc_err).any(), "acc_err has NaN"
         assert not torch.isinf(acc_err).any(), "acc_err has Inf"
 
-        # r_q = self.alpha_q * (1.0 / (1.0 + phi^2))
         r_q      = torch.mul(
             self.alpha_q,
-            torch.div(
-                torch.ones_like(phi),
-                torch.add(torch.ones_like(phi), torch.square(phi))
-            )
+            torch.exp(-torch.square(phi))
         )
 
-        # r_omega = self.alpha_omega * r_q * (1.0 / (1.0 + omega_err^2))
         r_omega  = torch.mul(
             r_q,
             torch.mul(
                 self.alpha_omega,
-                torch.div(
-                    torch.ones_like(omega_err),
-                    torch.add(torch.ones_like(omega_err), torch.square(omega_err))
-                )
+                torch.exp(-torch.square(omega_err))
             )
         )
 
-        # r_acc = self.alpha_acc * r_q * (1.0 / (1.0 + acc_err^2))
         r_acc    = torch.mul(
             r_q,
             torch.mul(
                 self.alpha_acc,  
-                torch.div(
-                    torch.ones_like(acc_err),
-                    torch.add(torch.ones_like(acc_err), torch.square(acc_err))
-                )
+                torch.exp(-torch.square(acc_err))
             )
         )
 
@@ -113,111 +101,24 @@ class TestReward(RewardFunction):
 
         return reward
 
-class TestRewardSpin(RewardFunction):
+class CurriculumReward(RewardFunction):
     """
-    Simple test reward: weighted inverse errors with dynamic scaling.
+    Curriculum reward: weighted inverse errors with dynamic scaling based on global step.
     """
-    def __init__(self, log_reward, log_reward_interval, alpha_q=10.0, alpha_omega=0.0, alpha_acc=0.0, alpha_spin=1.0):
+    def __init__(self, log_reward, log_reward_interval, alpha_q=10.0, alpha_omega=0.0, alpha_acc=0.0):
         super().__init__(log_reward, log_reward_interval)
+        self.changing_steps = [10000, 20000, 30000, 40000, 50000]
+        self.k = [1.0, 2.0, 4.0, 8.0, 16.0]
         self.alpha_q = alpha_q
         self.alpha_omega = alpha_omega
         self.alpha_acc = alpha_acc
-        self.alpha_spin = alpha_spin
-
-    def compute(self, quats, ang_vels, ang_accs, goal_quat, goal_ang_vel, goal_ang_acc, actions):
-        # attitude error [0-infinity] (radians)
-        phi_raw = quat_diff_rad(quats, goal_quat)
-        phi = torch.tan(torch.div(phi_raw, 2.0)) # tan(phi/2)
-        # angular velocity error [0-infinity] (rad/s)
-        omega_err = torch.norm(torch.sub(ang_vels, goal_ang_vel), dim=1)
-        # angular acceleration error [0-infinity] (rad/s^2)
-        acc_err   = torch.norm(torch.sub(ang_accs, goal_ang_acc), dim=1)
-
-        assert not torch.isnan(phi).any(), "phi has NaN"
-        assert not torch.isinf(phi).any(), "phi has Inf"
-        assert not torch.isnan(omega_err).any(), "omega_err has NaN"
-        assert not torch.isinf(omega_err).any(), "omega_err has Inf"
-        assert not torch.isnan(acc_err).any(), "acc_err has NaN"
-        assert not torch.isinf(acc_err).any(), "acc_err has Inf"
-
-        # r_q = self.alpha_q * (1.0 / (1.0 + phi^2))
-        r_q      = torch.mul(
-            self.alpha_q,
-            torch.div(
-                torch.ones_like(phi),
-                torch.add(torch.ones_like(phi), torch.square(phi))
-            )
-        )
-
-        # r_omega = self.alpha_omega * r_q * (1.0 / (1.0 + omega_err^2))
-        r_omega  = torch.mul(
-            r_q,
-            torch.mul(
-                self.alpha_omega,
-                torch.div(
-                    torch.ones_like(omega_err),
-                    torch.add(torch.ones_like(omega_err), torch.square(omega_err))
-                )
-            )
-        )
-
-        # r_acc = self.alpha_acc * r_q * (1.0 / (1.0 + acc_err^2))
-        r_acc    = torch.mul(
-            r_q,
-            torch.mul(
-                self.alpha_acc,  
-                torch.div(
-                    torch.ones_like(acc_err),
-                    torch.add(torch.ones_like(acc_err), torch.square(acc_err))
-                )
-            )
-        )
-        
-        # r_spin = self.alpha_spin * (1.0 / (1.0 + spin_err^2))
-        spin_err = torch.sub(ang_vels[:, 2], goal_ang_vel[:, 2])
-        r_spin = torch.mul(
-            self.alpha_spin,
-            torch.div(
-                torch.ones_like(spin_err),
-                torch.add(torch.ones_like(spin_err), torch.square(spin_err))
-            )
-        )
-
-        reward = torch.add(torch.add(r_q, r_omega), r_acc)
-        reward = torch.add(reward, r_spin)
-
-        assert not torch.isnan(reward).any(), "reward has NaN"
-        assert not torch.isinf(reward).any(), "reward has Inf"
-
-        if self.log_reward:
-            if self.global_step % self.log_reward_interval == 0:
-                self.writer.add_scalar('Reward_policy/q', r_q.mean().item(), global_step=self.global_step)
-                self.writer.add_scalar('Reward_policy/omega', r_omega.mean().item(), global_step=self.global_step)
-                self.writer.add_scalar('Reward_policy/acc', r_acc.mean().item(), global_step=self.global_step)
-                self.writer.add_scalar('Reward_policy/spin', r_spin.mean().item(), global_step=self.global_step)
-                self.writer.add_scalar('Reward_policy/total', reward.mean().item(), global_step=self.global_step)
-        
-        self.global_step += 1
-        
-        return reward
-
-class TestRewardCurriculum(RewardFunction):
-    """
-    Simple test reward: weighted inverse errors with dynamic scaling.
-    """
-    def __init__(self, log_reward, log_reward_interval):
-        super().__init__(log_reward, log_reward_interval)
-        self.changing_steps = [2000, 4000, 6000, 8000, 10000]
-        self.alpha_q = [1.0, 10.0, 25.0, 50.0, 100.0]
-        self.alpha_omega = [0.0, 0.0, 0.0, 0.0, 0.0]
-        self.alpha_acc = [0.0, 0.0, 0.0, 0.0, 0.0]
         self.prev_actions = None
 
-    def get_current_weights(self, global_step, changing_steps):
-        for i, step in enumerate(changing_steps):
-            if global_step < step:
-                return self.alpha_q[i], self.alpha_omega[i], self.alpha_acc[i]
-        return self.alpha_q[-1], self.alpha_omega[-1], self.alpha_acc[-1]
+    def get_current_k(self):
+        for i, step in enumerate(self.changing_steps):
+            if self.global_step < step:
+                return self.k[i]
+        return self.k[-1]
     
     def compute(self, quats, ang_vels, ang_accs, goal_quat, goal_ang_vel, goal_ang_acc, actions):
         # attitude error [0-infinity] (radians)
@@ -235,38 +136,26 @@ class TestRewardCurriculum(RewardFunction):
         assert not torch.isnan(acc_err).any(), "acc_err has NaN"
         assert not torch.isinf(acc_err).any(), "acc_err has Inf"
 
-        alpha_q, alpha_omega, alpha_acc = self.get_current_weights(self.global_step, self.changing_steps)
+        k = self.get_current_k()
 
-        # r_q = alpha_q * (1.0 / (1.0 + phi^2))
         r_q      = torch.mul(
-            alpha_q,
-            torch.div(
-                torch.ones_like(phi),
-                torch.add(torch.ones_like(phi), torch.square(phi))
-            )
+            self.alpha_q,
+            torch.exp(-torch.square(phi) * k)
         )
 
-        # r_omega = alpha_omega * r_q * (1.0 / (1.0 + omega_err^2))
         r_omega  = torch.mul(
             r_q,
             torch.mul(
-                alpha_omega,
-                torch.div(
-                    torch.ones_like(omega_err),
-                    torch.add(torch.ones_like(omega_err), torch.square(omega_err))
-                )
+                self.alpha_omega,
+                torch.exp(-torch.square(omega_err) * k)
             )
         )
 
-        # r_acc = alpha_acc * r_q * (1.0 / (1.0 + acc_err^2))
         r_acc    = torch.mul(
             r_q,
             torch.mul(
-                alpha_acc,  
-                torch.div(
-                    torch.ones_like(acc_err),
-                    torch.add(torch.ones_like(acc_err), torch.square(acc_err))
-                )
+                self.alpha_acc,  
+                torch.exp(-torch.square(acc_err) * k)
             )
         )
 
