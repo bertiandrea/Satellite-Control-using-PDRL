@@ -6,6 +6,9 @@ import numpy as np
 import isaacgym
 import torch
 
+from skrl.resources.preprocessors.torch import RunningStandardScaler
+from skrl.resources.schedulers.torch import KLAdaptiveRL
+
 NUM_ENVS = 4096
 ROLLOUTS = 16
 N_EPOCHS = 100
@@ -45,7 +48,7 @@ CONFIG = {
         "threshold_vel_goal": 0.01, # radians/sec
         "overspeed_ang_vel": 3.14,  # radians/sec
         "goal_time": 10, # seconds        
-        "sparse_reward": 100.0, # reward for reaching the goal
+        "sparse_reward": 0.0, # reward for reaching the goal
         "episode_length_s": 30.0, # seconds
 
         "clipActions": 1.0,
@@ -144,8 +147,19 @@ CONFIG = {
         "PPO": {
             "num_envs": NUM_ENVS,
             "rollouts": ROLLOUTS,
-            "learning_epochs": 8,
-            "mini_batches": 2,
+            "learning_epochs": 4,
+            "mini_batches": 4,
+            
+            "learning_rate_scheduler" : KLAdaptiveRL,
+            "learning_rate_scheduler_kwargs" : {"kl_threshold": 0.01},
+            "state_preprocessor" : RunningStandardScaler,
+            "value_preprocessor" : RunningStandardScaler,
+            "rewards_shaper" : None,
+
+            "kl_threshold" : 0, #Optional early-stop threshold on KL divergence between old and new policies (0 disables).
+
+            "random_timesteps" : 0, #Number of initial timesteps with random actions before learning or policy-driven sampling.
+            "learning_starts" : 0, #Number of environment steps to collect before beginning any gradient updates.
             
             "experiment": {
                 "write_interval": "auto",

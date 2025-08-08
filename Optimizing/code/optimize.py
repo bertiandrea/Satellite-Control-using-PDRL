@@ -32,7 +32,7 @@ import optuna
 from optuna.pruners import MedianPruner
 from optuna.samplers import TPESampler
 TENSORBOARD_TAG = "Reward / Instantaneous reward (mean)"
-N_TRIALS = 25
+N_TRIALS = 1000
 # ──────────────────────────────────────────────────────────────────────────────
 
 REWARD_MAP = {
@@ -60,14 +60,13 @@ def sample_ppo_params(trial: optuna.Trial):
     return {
         "discount_factor": trial.suggest_float("discount_factor", 0.90, 0.999),
         "lambda":          trial.suggest_float("lambda", 0.90,   0.999),
-        "learning_rate":  trial.suggest_float("learning_rate", 1e-4, 1e-2),
+        "learning_rate":  trial.suggest_float("learning_rate", 1e-5, 1e-2),
         "grad_norm_clip": trial.suggest_float("grad_norm_clip", 0.1, 1.0),
         "ratio_clip":   trial.suggest_float("ratio_clip", 0.1, 0.3),
         "value_clip": trial.suggest_float("value_clip", 0.1, 0.3),
         "clip_predicted_values": trial.suggest_categorical("clip_predicted_values", [True, False]),
         "entropy_loss_scale": trial.suggest_float("entropy_loss_scale", 0.0, 0.05),
         "value_loss_scale": trial.suggest_float("value_loss_scale", 0.5, 2.0),
-        "kl_threshold": trial.suggest_float("kl_threshold", 0.0, 0.1),
     }
 
 def objective(trial: optuna.Trial) -> float:
@@ -111,7 +110,6 @@ def objective(trial: optuna.Trial) -> float:
         "clip_predicted_values": hp["clip_predicted_values"],
         "entropy_loss_scale":    hp["entropy_loss_scale"],
         "value_loss_scale":      hp["value_loss_scale"],
-        "kl_threshold":          hp["kl_threshold"],
     })
 
     agent = PPO(models=models,
@@ -156,6 +154,8 @@ def main():
     ##################################################################
     
     study = optuna.create_study(
+        study_name=f"Satellite_{args.reward_fn}",
+        storage="sqlite:///optuna_study.db",
         sampler=TPESampler(n_startup_trials=10, multivariate=True),
         pruner=MedianPruner(n_startup_trials=10, n_warmup_steps=1),
         direction="maximize",
