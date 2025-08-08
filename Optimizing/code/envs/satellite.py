@@ -261,7 +261,7 @@ class Satellite(VecTask):
         #########################################
 
         #########################################
-        self.writer.add_scalar('Goal/angle_diff', angle_diff.mean().item(), global_step=self.control_steps)
+        self.writer.add_scalar('Goal/angle_diff', angle_diff.mean().item() * (180 / torch.pi), global_step=self.control_steps)
         self.writer.add_scalar('Goal/goal', goal.sum(dim=0).item(), global_step=self.control_steps)
         self.writer.add_scalar('Goal/goal_reached', self.goal_reached.sum(dim=0).item(), global_step=self.control_steps)
         #########################################
