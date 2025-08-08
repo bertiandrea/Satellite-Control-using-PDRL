@@ -208,7 +208,7 @@ CONFIG = {
     # --- dr_randomization -------------------------------------------------
     "dr_randomization": {
         "enabled": False,
-        "automatic": False,
+        "automatic": True,
         "dr_params": {
             "observations": {
                 "range": [-0.1, 0.1],

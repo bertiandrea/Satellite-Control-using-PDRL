@@ -6,6 +6,9 @@ import numpy as np
 import isaacgym
 import torch
 
+from skrl.resources.preprocessors.torch import RunningStandardScaler
+from skrl.resources.schedulers.torch import KLAdaptiveRL
+
 NUM_ENVS = 4096
 N_EPOCHS = 1000
 HEADLESS = False
@@ -149,6 +152,25 @@ CONFIG = {
             "num_envs": NUM_ENVS,
             "rollouts": ROLLOUTS,
 
+            "learning_rate_scheduler" : KLAdaptiveRL,
+            "learning_rate_scheduler_kwargs" : {"kl_threshold": 0.01},
+            "state_preprocessor" : RunningStandardScaler,
+            "value_preprocessor" : RunningStandardScaler,
+
+            "discount_factor" : 0.99, #(γ) Future reward discount; balances immediate versus long-term return.
+            "learning_rate" : 1e-3, #Step size for optimizer (e.g. Adam) when updating policy and value networks.
+            "grad_norm_clip" : 0.5, #Maximum norm value to clip gradients, preventing exploding gradients.
+            "ratio_clip" : 0.2, #(ϵ) PPO’s clipping threshold on the policy probability ratio to constrain updates.
+            "value_clip" : 0.2, #Clipping range for value function targets to stabilize value updates.
+            "clip_predicted_values" : False, #If enabled, clips the new value predictions to lie within the range defined by value_clip around the old predictions.
+            "entropy_loss_scale" : 0.00, #Coefficient multiplying the entropy bonus; encourages exploration when > 0.
+            "value_loss_scale" : 1.0, #Coefficient weighting the value function loss in the total loss.
+            "kl_threshold" : 0, #Optional early-stop threshold on KL divergence between old and new policies (0 disables).
+            "lambda" : 0.95, #(λ) GAE parameter for bias–variance trade-off in advantage estimation.
+
+            "random_timesteps" : 0, #Number of initial timesteps with random actions before learning or policy-driven sampling.
+            "learning_starts" : 0, #Number of environment steps to collect before beginning any gradient updates.
+            
             "experiment": {
                 "write_interval": "auto",
                 "checkpoint_interval": "auto",

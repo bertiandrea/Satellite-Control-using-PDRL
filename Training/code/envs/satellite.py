@@ -73,6 +73,8 @@ class Satellite(ADRVecTask):
         ###################################################
         self.in_goal_buf = torch.zeros(self.num_envs, dtype=torch.long, device=self.device)
         self.goal_reached = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
+        self.goal_total = 0
+        self.goal_reached_total = 0
         ###################################################
 
     def create_sim(self) -> None:
@@ -284,7 +286,11 @@ class Satellite(ADRVecTask):
         #########################################
         self.writer.add_scalar('Goal/angle_diff', angle_diff.mean().item(), global_step=self.control_steps)
         self.writer.add_scalar('Goal/goal', goal.sum(dim=0).item(), global_step=self.control_steps)
+        self.goal_total += goal.sum(dim=0).item()
+        self.writer.add_scalar('Goal/goal_total', self.goal_total, global_step=self.control_steps)
         self.writer.add_scalar('Goal/goal_reached', self.goal_reached.sum(dim=0).item(), global_step=self.control_steps)
+        self.goal_reached_total += self.goal_reached.sum(dim=0).item()
+        self.writer.add_scalar('Goal/goal_reached_total', self.goal_reached_total, global_step=self.control_steps)
         #########################################
 
         #########################################
