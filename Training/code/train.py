@@ -8,6 +8,7 @@ from code.CAPS.agent_wrapper_CAPS import PPOWrapperCAPS
 from code.rewards.satellite_reward import (
     SimpleReward,
     CurriculumReward,
+    FineCurriculumReward,
     WeightedSumReward,
     TwoPhaseReward,
     ExponentialStabilizationReward,
@@ -39,6 +40,7 @@ import pandas as pd
 REWARD_MAP = {
     "simple": SimpleReward,
     "curriculum": CurriculumReward,
+    "fine_curriculum": FineCurriculumReward,
     "weighted_sum": WeightedSumReward,
     "two_phase": TwoPhaseReward,
     "exp_stabilization": ExponentialStabilizationReward,
