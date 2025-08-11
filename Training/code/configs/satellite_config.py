@@ -10,14 +10,16 @@ from skrl.resources.preprocessors.torch import RunningStandardScaler
 from skrl.resources.schedulers.torch import KLAdaptiveRL
 
 NUM_ENVS = 4096
-N_EPOCHS = 5000
+N_EPOCHS = 1000
 HEADLESS = False
 PROFILE = False
 DEBUG_ARROWS = True
-DEBUG_PRINTS = False
+DEBUG_PRINTS = True
 HEARTBEAT = False
 
-ROLLOUTS = 16
+ROLLOUTS = 64
+LEARNING_EPOCHS = 32
+MINI_BATCHES = 8
 
 CONFIG = {
     # --- seed & devices ----------------------------------------------------
@@ -49,17 +51,17 @@ CONFIG = {
 
         "envSpacing": 3.0,
 
-        "threshold_ang_goal": 0.01, # radians
-        "threshold_vel_goal": 0.01, # radians/sec
-        "overspeed_ang_vel": 3.14,  # radians/sec
+        "threshold_ang_goal": 0.05, # radians
+        "threshold_vel_goal": 0.05, # radians/sec
+        "overspeed_ang_vel": 0.5,  # radians/sec
         "goal_time": 10, # seconds
-        "sparse_reward": 0.0, # reward for reaching the goal
+        "sparse_reward": 100.0, # reward for reaching the goal
         "episode_length_s": 60.0, # seconds
 
         "clipActions": 1.0,
         "clipObservations": 10.0,
 
-        "torque_scale": 100.0,
+        "torque_scale": 1000.0,
 
         "debug_arrows": DEBUG_ARROWS,
         
@@ -152,8 +154,8 @@ CONFIG = {
         "PPO": {
             "num_envs": NUM_ENVS,
             "rollouts": ROLLOUTS,
-            "learning_epochs": 4,
-            "mini_batches": 4,
+            "learning_epochs": LEARNING_EPOCHS,
+            "mini_batches": MINI_BATCHES,
             
             "learning_rate_scheduler" : KLAdaptiveRL,
             "learning_rate_scheduler_kwargs" : {"kl_threshold": 0.01},
@@ -162,12 +164,12 @@ CONFIG = {
             "rewards_shaper" : None,
 
             "discount_factor" : 0.99, #(γ) Future reward discount; balances immediate versus long-term return.
-            "learning_rate" : 1e-5, #Step size for optimizer (e.g. Adam) when updating policy and value networks.
+            "learning_rate" : 1e-3, #Step size for optimizer (e.g. Adam) when updating policy and value networks.
             "grad_norm_clip" : 0.5, #Maximum norm value to clip gradients, preventing exploding gradients.
-            "ratio_clip" : 0.1, #(ϵ) PPO’s clipping threshold on the policy probability ratio to constrain updates.
+            "ratio_clip" : 0.2, #(ϵ) PPO’s clipping threshold on the policy probability ratio to constrain updates.
             "value_clip" : 0.2, #Clipping range for value function targets to stabilize value updates.
             "clip_predicted_values" : False, #If enabled, clips the new value predictions to lie within the range defined by value_clip around the old predictions.
-            "entropy_loss_scale" : 0.05, #Coefficient multiplying the entropy bonus; encourages exploration when > 0.
+            "entropy_loss_scale" : 0.00, #Coefficient multiplying the entropy bonus; encourages exploration when > 0.
             "value_loss_scale" : 1.0, #Coefficient weighting the value function loss in the total loss.
             "kl_threshold" : 0, #Optional early-stop threshold on KL divergence between old and new policies (0 disables).
             "lambda" : 0.95, #(λ) GAE parameter for bias–variance trade-off in advantage estimation.
