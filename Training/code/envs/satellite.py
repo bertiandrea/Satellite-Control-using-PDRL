@@ -71,7 +71,8 @@ class Satellite(ADRVecTask):
             self.reward_fn = reward_fn
         
         ###################################################
-        self.in_goal_buf = torch.zeros(self.num_envs, dtype=torch.long, device=self.device)
+        self.in_goal = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
+        self.in_goal_counter = torch.zeros(self.num_envs, dtype=torch.long, device=self.device)
         self.goal_reached = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
         self.goal_total = 0
         self.goal_reached_total = 0
@@ -185,8 +186,7 @@ class Satellite(ADRVecTask):
         self.rew_buf[ids] = 0.0
         self.episode_rew_buf[ids] = 0.0
 
-        self.in_goal_buf[ids] = 0
-        self.goal_reached[ids] = False
+        self.in_goal_counter[ids] = 0
 
     ################################################################################################################################
                 
@@ -252,48 +252,49 @@ class Satellite(ADRVecTask):
         )
         # Sparse reward for reaching the goal
         self.rew_buf = torch.where(
-            torch.ne(self.in_goal_buf, 0),
+            self.in_goal,
             torch.add(self.rew_buf, self.sparse_reward),
             self.rew_buf
         )
+        self.in_goal = torch.zero_(self.in_goal)
         # Sparse reward for staying in the goal
         self.rew_buf = torch.where(
             self.goal_reached,
             torch.add(self.rew_buf, self.sparse_reward * self.goal_time),
             self.rew_buf
         )
+        self.goal_reached = torch.zero_(self.goal_reached)
         self.episode_rew_buf += self.rew_buf
         self.writer.add_scalar('Reward_policy/total_episode', self.episode_rew_buf.mean().item(), global_step=self.control_steps)
 
-    def check_termination(self) -> None:
+    def check_goal(self) -> None:
         #########################################
         angle_diff = quat_diff_rad(self.satellite_quats, self.goal_quat)
         ang_vel_diff = torch.norm(
             torch.sub(self.satellite_angvels, self.goal_ang_vel),
             dim=1
         )
-        goal = torch.logical_and(
+        #########################################
+        self.in_goal = torch.logical_and(
             torch.lt(angle_diff, self.threshold_ang_goal),
             torch.lt(ang_vel_diff, self.threshold_vel_goal)
         )
-        #########################################
-
-        #########################################
-        self.in_goal_buf = torch.add(self.in_goal_buf, goal.to(torch.long))
-        self.goal_reached = torch.ge(self.in_goal_buf, self.goal_time)
+        self.in_goal_counter = torch.add(self.in_goal_counter, self.in_goal.to(torch.long))
+        self.goal_reached = torch.ge(self.in_goal_counter, self.goal_time)
         #########################################
 
         #########################################
         self.writer.add_scalar('Goal/angle_diff', angle_diff.mean().item() * (180 / torch.pi), global_step=self.control_steps)
-        self.writer.add_scalar('Goal/goal', goal.sum(dim=0).item(), global_step=self.control_steps)
-        self.goal_total += goal.sum(dim=0).item()
+
+        self.writer.add_scalar('Goal/goal', self.in_goal.sum(dim=0).item(), global_step=self.control_steps)
+        self.goal_total += self.in_goal.sum(dim=0).item()
         self.writer.add_scalar('Goal/goal_total', self.goal_total, global_step=self.control_steps)
         self.writer.add_scalar('Goal/goal_reached', self.goal_reached.sum(dim=0).item(), global_step=self.control_steps)
         self.goal_reached_total += self.goal_reached.sum(dim=0).item()
         self.writer.add_scalar('Goal/goal_reached_total', self.goal_reached_total, global_step=self.control_steps)
         #########################################
 
-        #########################################
+    def check_termination(self) -> None:
         timeout = torch.ge(self.progress_buf, self.max_episode_length)
         overspeed = torch.ge(
             torch.norm(self.satellite_angvels, dim=1),
@@ -302,7 +303,6 @@ class Satellite(ADRVecTask):
 
         self.timeout_buf = timeout
         self.reset_buf = torch.logical_or(timeout, overspeed)
-        #########################################
     
     def pre_physics_step(self, actions):
         if self.heartbeat:
@@ -321,6 +321,8 @@ class Satellite(ADRVecTask):
             return
         
         self.compute_observations()
+
+        self.check_goal()
 
         self.compute_reward()
 
