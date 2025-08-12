@@ -256,14 +256,12 @@ class Satellite(ADRVecTask):
             torch.add(self.rew_buf, self.sparse_reward),
             self.rew_buf
         )
-        self.in_goal = torch.zero_(self.in_goal)
         # Sparse reward for staying in the goal
         self.rew_buf = torch.where(
             self.goal_reached,
             torch.add(self.rew_buf, self.sparse_reward * self.goal_time),
             self.rew_buf
         )
-        self.goal_reached = torch.zero_(self.goal_reached)
         self.episode_rew_buf += self.rew_buf
         self.writer.add_scalar('Reward_policy/total_episode', self.episode_rew_buf.mean().item(), global_step=self.control_steps)
 
