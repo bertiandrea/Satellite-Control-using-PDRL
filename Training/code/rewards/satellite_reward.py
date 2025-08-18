@@ -48,6 +48,10 @@ class SimpleReward(RewardFunction):
         self.alpha_omega = alpha_omega
         self.alpha_acc = alpha_acc
 
+        self.target_deg = 2.5 * (math.pi / 180) # target angle in degrees
+        self.r_at_target = 0.99 # reward at target angle
+        self.sigma = self.target_deg / math.sqrt(-2 * math.log(self.r_at_target))
+
     def compute(self, quats, ang_vels, ang_accs, goal_quat, goal_ang_vel, goal_ang_acc, actions):
         # attitude error [0-pi] (radians)
         phi = quat_diff_rad(quats, goal_quat)
@@ -63,16 +67,18 @@ class SimpleReward(RewardFunction):
         assert not torch.isnan(acc_err).any(), "acc_err has NaN"
         assert not torch.isinf(acc_err).any(), "acc_err has Inf"
 
+        sigma = torch.tensor(self.sigma, dtype=torch.float32, device=quats.device)
+
         r_q      = torch.mul(
             self.alpha_q,
-            torch.exp(-torch.square(phi))
+                torch.exp(torch.div(-torch.square(phi), 2*torch.square(sigma)))
         )
 
         r_omega  = torch.mul(
             r_q,
             torch.mul(
                 self.alpha_omega,
-                torch.exp(-torch.square(omega_err))
+                torch.exp(torch.div(-torch.square(omega_err), 2*torch.square(sigma)))
             )
         )
 
@@ -80,7 +86,7 @@ class SimpleReward(RewardFunction):
             r_q,
             torch.mul(
                 self.alpha_acc,  
-                torch.exp(-torch.square(acc_err))
+                torch.exp(torch.div(-torch.square(acc_err), 2*torch.square(sigma)))
             )
         )
 
@@ -91,10 +97,10 @@ class SimpleReward(RewardFunction):
 
         if self.log_reward:
             if self.global_step % self.log_reward_interval == 0:
-                self.writer.add_scalar('Reward_policy/q', r_q.mean().item(), global_step=self.global_step)
-                self.writer.add_scalar('Reward_policy/omega', r_omega.mean().item(), global_step=self.global_step)
-                self.writer.add_scalar('Reward_policy/acc', r_acc.mean().item(), global_step=self.global_step)
-                self.writer.add_scalar('Reward_policy/total', reward.mean().item(), global_step=self.global_step)
+                self.writer.add_scalar('Reward_policy/q', r_q.median().item(), global_step=self.global_step)
+                self.writer.add_scalar('Reward_policy/omega', r_omega.median().item(), global_step=self.global_step)
+                self.writer.add_scalar('Reward_policy/acc', r_acc.median().item(), global_step=self.global_step)
+                self.writer.add_scalar('Reward_policy/total', reward.median().item(), global_step=self.global_step)
         
         self.global_step += 1
 
@@ -102,101 +108,32 @@ class SimpleReward(RewardFunction):
 
 class CurriculumReward(RewardFunction):
     """
-    Curriculum reward: weighted inverse errors with dynamic scaling based on global step.
-    """
-    def __init__(self, log_reward, log_reward_interval, alpha_q=10.0, alpha_omega=0.0, alpha_acc=0.0):
-        super().__init__(log_reward, log_reward_interval)
-        self.changing_steps = [10000, 20000, 30000, 40000, 50000]
-        self.k = [1.0, 2.0, 4.0, 8.0, 16.0]
-        self.alpha_q = alpha_q
-        self.alpha_omega = alpha_omega
-        self.alpha_acc = alpha_acc
-        self.prev_actions = None
-
-    def get_current_k(self):
-        for i, step in enumerate(self.changing_steps):
-            if self.global_step < step:
-                return self.k[i]
-        return self.k[-1]
-    
-    def compute(self, quats, ang_vels, ang_accs, goal_quat, goal_ang_vel, goal_ang_acc, actions):
-        # attitude error [0-pi] (radians)
-        phi = quat_diff_rad(quats, goal_quat)
-        # angular velocity error [0-infinity] (rad/s)
-        omega_err = torch.norm(torch.sub(ang_vels, goal_ang_vel), dim=1)
-        # angular acceleration error [0-infinity] (rad/s^2)
-        acc_err   = torch.norm(torch.sub(ang_accs, goal_ang_acc), dim=1)
-
-        assert not torch.isnan(phi).any(), "phi has NaN"
-        assert not torch.isinf(phi).any(), "phi has Inf"
-        assert not torch.isnan(omega_err).any(), "omega_err has NaN"
-        assert not torch.isinf(omega_err).any(), "omega_err has Inf"
-        assert not torch.isnan(acc_err).any(), "acc_err has NaN"
-        assert not torch.isinf(acc_err).any(), "acc_err has Inf"
-
-        k = self.get_current_k()
-
-        r_q      = torch.mul(
-            self.alpha_q,
-            torch.exp(-torch.square(phi) * k)
-        )
-
-        r_omega  = torch.mul(
-            r_q,
-            torch.mul(
-                self.alpha_omega,
-                torch.exp(-torch.square(omega_err) * k)
-            )
-        )
-
-        r_acc    = torch.mul(
-            r_q,
-            torch.mul(
-                self.alpha_acc,  
-                torch.exp(-torch.square(acc_err) * k)
-            )
-        )
-
-        reward = torch.add(torch.add(r_q, r_omega), r_acc)
-
-        assert not torch.isnan(reward).any(), "reward has NaN"
-        assert not torch.isinf(reward).any(), "reward has Inf"
-
-        if self.log_reward:
-            if self.global_step % self.log_reward_interval == 0:
-                self.writer.add_scalar('Reward_policy/q', r_q.mean().item(), global_step=self.global_step)
-                self.writer.add_scalar('Reward_policy/omega', r_omega.mean().item(), global_step=self.global_step)
-                self.writer.add_scalar('Reward_policy/acc', r_acc.mean().item(), global_step=self.global_step)
-                self.writer.add_scalar('Reward_policy/total', reward.mean().item(), global_step=self.global_step)
-        
-        self.global_step += 1
-        
-        return reward
-
-class FineCurriculumReward(RewardFunction):
-    """
     Gaussian reward shaping with curriculum.
     Sensitive to ~0.1° and gradually sharpens as training progresses.
     """
     def __init__(self, log_reward, log_reward_interval, alpha_q=10.0, alpha_omega=0.0, alpha_acc=0.0):
         super().__init__(log_reward, log_reward_interval)
 
-        self.changing_steps = [5000, 10000, 15000, 25000, 35000, 45000, 60000, 80000]
+        self.changing_steps = [
+            5000, 10000, 15000, 20000
+        ]
         self.alpha_q = alpha_q
         self.alpha_omega = alpha_omega
         self.alpha_acc = alpha_acc
         self.prev_actions = None
 
-        self.target_deg = 10 # target angle in degrees
-        self.final_target_deg = 0.1 # final target angle in degrees
+        self.target_deg = 2.5 * (math.pi / 180) # target angle in degrees
+        self.final_target_deg = 0.1 * (math.pi / 180) # final target angle in degrees
         self.r_at_target = 0.99 # reward at target angle
-        self.base_sigma = self.target_deg * (math.pi / 180) / math.sqrt(-math.log(self.r_at_target))
-        self.final_sigma = self.final_target_deg * (math.pi / 180) / math.sqrt(-math.log(self.r_at_target))
-        # initialize sigma list by interpolating between base_sigma and final_sigma over the curriculum steps
-        self.sigma = [
-            self.base_sigma + (self.final_sigma - self.base_sigma) * (i / (len(self.changing_steps) - 1))
-            for i in range(len(self.changing_steps))
-        ]
+
+        n = len(self.changing_steps)
+        decay_rate = math.log(self.final_target_deg / self.target_deg) / (n - 1)
+        self.sigma = []
+        for i in range(n):
+            sigma_i = (self.target_deg * math.exp(decay_rate * i)) / math.sqrt(-2 * math.log(self.r_at_target))
+            self.sigma.append(sigma_i)
+        
+        print(f"Sigma values: {self.sigma}")
 
     def get_current_sigma(self):
         for i, step in enumerate(self.changing_steps):
@@ -205,7 +142,7 @@ class FineCurriculumReward(RewardFunction):
         return self.sigma[-1]
 
     def gaussian_reward(self, err, sigma):
-        return torch.exp(torch.div(-torch.square(err), torch.square(sigma)))
+        return torch.exp(torch.div(-torch.square(err), 2*torch.square(sigma)))
 
     def compute(self, quats, ang_vels, ang_accs, goal_quat, goal_ang_vel, goal_ang_acc, actions):
         # attitude error [0-pi] (radians)
@@ -225,8 +162,8 @@ class FineCurriculumReward(RewardFunction):
         sigma = torch.tensor(self.get_current_sigma(), dtype=torch.float32, device=quats.device)
 
         r_q     = torch.mul(self.alpha_q, self.gaussian_reward(phi, sigma))
-        r_omega = torch.mul(self.alpha_omega, self.gaussian_reward(omega_err, sigma))
-        r_acc   = torch.mul(self.alpha_acc, self.gaussian_reward(acc_err, sigma))
+        r_omega = torch.mul(r_q, torch.mul(self.alpha_omega, self.gaussian_reward(omega_err, sigma)))
+        r_acc   = torch.mul(r_q, torch.mul(self.alpha_acc, self.gaussian_reward(acc_err, sigma)))
 
         reward = torch.add(torch.add(r_q, r_omega), r_acc)
 
@@ -235,10 +172,10 @@ class FineCurriculumReward(RewardFunction):
         
         if self.log_reward:
             if self.global_step % self.log_reward_interval == 0:
-                self.writer.add_scalar('Reward/q',     r_q.mean().item(),     self.global_step)
-                self.writer.add_scalar('Reward/omega', r_omega.mean().item(), self.global_step)
-                self.writer.add_scalar('Reward/acc',   r_acc.mean().item(),   self.global_step)
-                self.writer.add_scalar('Reward/total', reward.mean().item(),  self.global_step)
+                self.writer.add_scalar('Reward_policy/q',     r_q.median().item(),     self.global_step)
+                self.writer.add_scalar('Reward_policy/omega', r_omega.median().item(), self.global_step)
+                self.writer.add_scalar('Reward_policy/acc',   r_acc.median().item(),   self.global_step)
+                self.writer.add_scalar('Reward_policy/total', reward.median().item(),  self.global_step)
 
         self.global_step += 1
 

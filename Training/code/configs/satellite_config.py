@@ -14,12 +14,12 @@ N_EPOCHS = 1500
 HEADLESS = False
 PROFILE = False
 DEBUG_ARROWS = True
-DEBUG_PRINTS = True
+DEBUG_PRINTS = False
 HEARTBEAT = False
 
-ROLLOUTS = 16
+ROLLOUTS = 32
 LEARNING_EPOCHS = 8
-MINI_BATCHES = 2
+MINI_BATCHES = 8
 
 CONFIG = {
     # --- seed & devices ----------------------------------------------------
@@ -51,13 +51,15 @@ CONFIG = {
 
         "envSpacing": 3.0,
 
-        "threshold_ang_goal": 0.01, # radians
-        "threshold_vel_goal": 0.01, # radians/sec
+        "threshold_ang_goal": 0.02, # radians
+        "threshold_vel_goal": 0.02, # radians/sec
         "overspeed_ang_vel": 0.5,  # radians/sec
         "goal_time": 10, # seconds
-        "sparse_reward": 1000.0, # reward for staying the goal
-        "sparse_reward_in_time": 1000.0, # reward for reaching the goal in time
-        "episode_length_s": 60.0, # seconds
+        "sparse_reward": 0.0, # reward for staying the goal
+        "sparse_reward_in_time": 0.0, # reward for reaching the goal in time
+        "episode_length_s": 50.0, # seconds
+        "episode_length_scaling": 0.95, # scaling factor for episode length
+        "episode_length_scaling_steps": 2000, # steps after which the episode length is scaled
 
         "clipActions": 1.0,
         "clipObservations": 10.0,
