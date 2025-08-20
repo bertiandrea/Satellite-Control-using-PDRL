@@ -55,8 +55,6 @@ CONFIG = {
         "sparse_reward": 100.0, # reward for staying the goal
         "sparse_reward_in_time": 100.0, # reward for reaching the goal in time
         "episode_length_s": 50.0, # seconds
-        "episode_length_scaling": 0.95, # scaling factor for episode length
-        "episode_length_scaling_steps": 2000, # steps after which the episode length is scaled
 
         "clipActions": 1.0,
         "clipObservations": 10.0,
