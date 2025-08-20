@@ -1,4 +1,4 @@
-# eval.py
+# evaluate.py
 
 from code.configs.satellite_config_eval import CONFIG
 from code.envs.satellite import Satellite

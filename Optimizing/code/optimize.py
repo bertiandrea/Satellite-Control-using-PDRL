@@ -1,4 +1,4 @@
-# train.py
+# optimize.py
 
 from code.configs.satellite_config_opt import CONFIG
 from code.envs.satellite import Satellite
