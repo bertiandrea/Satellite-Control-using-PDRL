@@ -10,9 +10,13 @@ from skrl.resources.preprocessors.torch import RunningStandardScaler
 from skrl.resources.schedulers.torch import KLAdaptiveRL
 
 NUM_ENVS = 4096
-ROLLOUTS = 16
 N_EPOCHS = 100
 HEADLESS = True
+DEBUG_ARROWS = False
+
+ROLLOUTS = 16
+LEARNING_EPOCHS = 8
+MINI_BATCHES = 8
 
 CONFIG = {
     # --- seed & devices ----------------------------------------------------
@@ -44,22 +48,25 @@ CONFIG = {
 
         "envSpacing": 3.0,
 
-        "threshold_ang_goal": 0.01, # radians
-        "threshold_vel_goal": 0.01, # radians/sec
-        "overspeed_ang_vel": 3.14,  # radians/sec
-        "goal_time": 10, # seconds        
-        "sparse_reward": 0.0, # reward for reaching the goal
-        "episode_length_s": 30.0, # seconds
+        "threshold_ang_goal": 0.02, # radians
+        "threshold_vel_goal": 0.02, # radians/sec
+        "overspeed_ang_vel": 0.5,  # radians/sec
+        "goal_time": 10, # seconds
+        "sparse_reward": 100.0, # reward for staying the goal
+        "sparse_reward_in_time": 100.0, # reward for reaching the goal in time
+        "episode_length_s": 50.0, # seconds
+        "episode_length_scaling": 0.95, # scaling factor for episode length
+        "episode_length_scaling_steps": 2000, # steps after which the episode length is scaled
 
         "clipActions": 1.0,
         "clipObservations": 10.0,
 
         "torque_scale": 1000.0,
 
-        "debug_arrows": False,
-
+        "debug_arrows": DEBUG_ARROWS,
+        
         "debug_prints": False,
-
+        
         "discretize_starting_pos": False,
 
         "asset": {
@@ -147,8 +154,8 @@ CONFIG = {
         "PPO": {
             "num_envs": NUM_ENVS,
             "rollouts": ROLLOUTS,
-            "learning_epochs": 4,
-            "mini_batches": 4,
+            "learning_epochs": LEARNING_EPOCHS,
+            "mini_batches": MINI_BATCHES,
             
             "learning_rate_scheduler" : KLAdaptiveRL,
             "learning_rate_scheduler_kwargs" : {"kl_threshold": 0.01},
