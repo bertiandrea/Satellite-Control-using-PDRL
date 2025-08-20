@@ -115,16 +115,18 @@ class CurriculumReward(RewardFunction):
         super().__init__(log_reward, log_reward_interval)
 
         self.changing_steps = [
-            5000, 7500, 10000, 12500, 15000, 17500, 20000
+            5000, 7500, 10000, 
+            12500, 15000, 17500, 20000,
+            22500, 25000, 27500, 30000,
         ]
         self.alpha_q = alpha_q
         self.alpha_omega = alpha_omega
         self.alpha_acc = alpha_acc
         self.prev_actions = None
 
-        self.target_deg = 2.5 * (math.pi / 180) # target angle in degrees
+        self.target_deg = 5 * (math.pi / 180) # target angle in degrees
         self.final_target_deg = 0.1 * (math.pi / 180) # final target angle in degrees
-        self.r_at_target = 0.999 # reward at target angle
+        self.r_at_target = 0.95 # reward at target angle
 
         n = len(self.changing_steps)
         decay_rate = math.log(self.final_target_deg / self.target_deg) / (n - 1)
