@@ -19,24 +19,27 @@ BASE_COLORS_GOAL = torch.tensor([[0,0,1], [0,1,0], [1,0,0]], dtype=torch.float)
 
 class Satellite(ADRVecTask):
     def __init__(self, cfg, rl_device, sim_device, graphics_device_id, headless, virtual_screen_capture, force_render, reward_fn: RewardFunction = None):
-        self.dt =                   cfg["sim"].get('dt', 1 / 60.0)                          # seconds
-        self.max_episode_length =   int(cfg["env"].get('episode_length_s', 120) / self.dt)  # seconds
+        self.dt =                    cfg["sim"].get('dt', 1 / 60.0)                          # seconds
+        self.max_episode_length =    int(cfg["env"].get('episode_length_s', 120) / self.dt)  # seconds
+        self.episode_scaling =       cfg["env"].get('episode_length_scaling', 1.0)
+        self.episode_scaling_steps = cfg["env"].get('episode_length_scaling_steps', 5000)    # steps after which the episode length is scaled
 
-        self.env_spacing =          cfg["env"].get('envSpacing', 0.0)                       # meters
-        self.asset_name =           cfg["env"]["asset"].get('assetName', 'satellite')
-        self.asset_root =           cfg["env"]["asset"].get('assetRoot', str(Path(__file__).resolve().parent.parent))
-        self.asset_file =           cfg["env"]["asset"].get('assetFileName', 'satellite.urdf')
-        self.asset_init_pos_p =     cfg["env"]["asset"].get('init_pos_p', [0.0, 0.0, 0.0])
-        self.asset_init_pos_r =     cfg["env"]["asset"].get('init_pos_r', [0.0, 0.0, 0.0, 1.0])
-        self.torque_scale =         cfg["env"].get('torque_scale', 1.0)
-        self.threshold_ang_goal =   cfg["env"].get('threshold_ang_goal', 0.01745)           # radians
-        self.threshold_vel_goal =   cfg["env"].get('threshold_vel_goal', 0.01745)           # radians/sec
-        self.goal_time =            cfg["env"].get('goal_time', 10) / self.dt               # seconds
-        self.sparse_reward =        cfg["env"].get('sparse_reward', 100.0)
-        self.overspeed_ang_vel =    cfg["env"].get('overspeed_ang_vel', 0.78540)            # radians/sec
-        self.debug_arrows =         cfg["env"].get('debug_arrows', False)
-        self.debug_prints =         cfg["env"].get('debug_prints', False)
-        self.heartbeat =            cfg.get('heartbeat', False)
+        self.env_spacing =           cfg["env"].get('envSpacing', 0.0)                       # meters
+        self.asset_name =            cfg["env"]["asset"].get('assetName', 'satellite')
+        self.asset_root =            cfg["env"]["asset"].get('assetRoot', str(Path(__file__).resolve().parent.parent))
+        self.asset_file =            cfg["env"]["asset"].get('assetFileName', 'satellite.urdf')
+        self.asset_init_pos_p =      cfg["env"]["asset"].get('init_pos_p', [0.0, 0.0, 0.0])
+        self.asset_init_pos_r =      cfg["env"]["asset"].get('init_pos_r', [0.0, 0.0, 0.0, 1.0])
+        self.torque_scale =          cfg["env"].get('torque_scale', 1.0)
+        self.threshold_ang_goal =    cfg["env"].get('threshold_ang_goal', 0.01745)           # radians
+        self.threshold_vel_goal =    cfg["env"].get('threshold_vel_goal', 0.01745)           # radians/sec
+        self.goal_time =             int(cfg["env"].get('goal_time', 10.0) / self.dt)        # seconds
+        self.sparse_reward =         cfg["env"].get('sparse_reward', 10.0)
+        self.sparse_reward_in_time = cfg["env"].get('sparse_reward_in_time', 10.0)
+        self.overspeed_ang_vel =     cfg["env"].get('overspeed_ang_vel', 0.78540)            # radians/sec
+        self.debug_arrows =          cfg["env"].get('debug_arrows', False)
+        self.debug_prints =          cfg["env"].get('debug_prints', False)
+        self.heartbeat =             cfg.get('heartbeat', False)
 
         super().__init__(config=cfg, rl_device=rl_device, sim_device=sim_device, graphics_device_id=graphics_device_id, headless=headless, virtual_screen_capture=virtual_screen_capture, force_render=force_render)
 
@@ -72,10 +75,13 @@ class Satellite(ADRVecTask):
         
         ###################################################
         self.in_goal = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
+        self.was_in_goal = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
         self.in_goal_counter = torch.zeros(self.num_envs, dtype=torch.long, device=self.device)
-        self.goal_reached = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
-        self.goal_total = 0
-        self.goal_reached_total = 0
+
+        self.goal_stayed_for = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
+        self.goal_stayed_for_reward_given = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
+        self.goal_reached_in_time = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
+        self.goal_reached_in_time_reward_given = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
         ###################################################
 
     def create_sim(self) -> None:
@@ -186,8 +192,14 @@ class Satellite(ADRVecTask):
         self.rew_buf[ids] = 0.0
         self.episode_rew_buf[ids] = 0.0
 
+        self.in_goal[ids] = False
+        self.was_in_goal[ids] = False
         self.in_goal_counter[ids] = 0
 
+        self.goal_stayed_for[ids] = 0
+        self.goal_reached_in_time[ids] = 0
+        self.goal_stayed_for_reward_given[ids] = False
+        self.goal_reached_in_time_reward_given[ids] = False
     ################################################################################################################################
                 
     def termination(self) -> None:
@@ -224,10 +236,7 @@ class Satellite(ADRVecTask):
     def compute_observations(self) -> None:
         ################# SIM #################
         self.gym.refresh_actor_root_state_tensor(self.sim)
-        self.satellite_angacc = torch.div(
-            torch.sub(self.satellite_angvels, self.prev_angvel),
-            self.dt
-        )
+        self.satellite_angacc = torch.div(torch.sub(self.satellite_angvels, self.prev_angvel), self.dt)
 
         self.prev_angvel = self.satellite_angvels.clone()
         self.obs_buf = torch.cat(
@@ -250,20 +259,25 @@ class Satellite(ADRVecTask):
             self.goal_quat, self.goal_ang_vel, self.goal_ang_acc,
             self.actions
         )
-        # Sparse reward for reaching the goal
-        self.rew_buf = torch.where(
-            self.in_goal,
-            torch.add(self.rew_buf, self.sparse_reward),
-            self.rew_buf
-        )
+        #########################################
         # Sparse reward for staying in the goal
         self.rew_buf = torch.where(
-            self.goal_reached,
-            torch.add(self.rew_buf, self.sparse_reward * self.goal_time),
-            self.rew_buf
+            self.goal_stayed_for_reward_given,
+            self.rew_buf,
+            torch.add(self.rew_buf, torch.mul(self.goal_stayed_for, self.sparse_reward))
         )
-        self.episode_rew_buf += self.rew_buf
-        self.writer.add_scalar('Reward_policy/total_episode', self.episode_rew_buf.mean().item(), global_step=self.control_steps)
+        # Sparse reward for reaching the goal in time
+        self.rew_buf = torch.where(
+            self.goal_reached_in_time_reward_given,
+            self.rew_buf,
+            torch.add(self.rew_buf, torch.mul(self.goal_reached_in_time, self.sparse_reward_in_time))
+        )
+        # Sparse reward should be given only once
+        self.goal_stayed_for_reward_given |= ~self.in_goal & (self.in_goal_counter == 0) & self.was_in_goal
+        self.goal_reached_in_time_reward_given |= self.in_goal & (self.progress_buf <= self.goal_time)
+        #########################################
+        self.episode_rew_buf = torch.add(self.episode_rew_buf, self.rew_buf)
+        self.writer.add_scalar('Reward_policy/total_episode', self.episode_rew_buf.median().item(), global_step=self.control_steps)
 
     def check_goal(self) -> None:
         #########################################
@@ -273,34 +287,46 @@ class Satellite(ADRVecTask):
             dim=1
         )
         #########################################
-        self.in_goal = torch.logical_and(
-            torch.lt(angle_diff, self.threshold_ang_goal),
-            torch.lt(ang_vel_diff, self.threshold_vel_goal)
+        self.in_goal = (angle_diff <= self.threshold_ang_goal) & (ang_vel_diff <= self.threshold_vel_goal)
+        self.was_in_goal = ~self.in_goal & (self.in_goal_counter > 0)
+        self.in_goal_counter = torch.where(
+            self.in_goal,
+            torch.add(self.in_goal_counter, 1),
+            0
         )
-        self.in_goal_counter = torch.add(self.in_goal_counter, self.in_goal.to(torch.long))
-        self.goal_reached = torch.ge(self.in_goal_counter, self.goal_time)
         #########################################
 
         #########################################
-        self.writer.add_scalar('Goal/angle_diff', angle_diff.mean().item() * (180 / torch.pi), global_step=self.control_steps)
+        self.goal_stayed_for = torch.mul(self.in_goal_counter, self.dt)
+        self.goal_reached_in_time = torch.where(
+            self.in_goal & (self.progress_buf <= self.goal_time),
+            torch.mul(torch.sub(self.goal_time, self.progress_buf), self.dt),
+            self.goal_reached_in_time
+        )
+        #########################################
 
+        #########################################
+        self.writer.add_scalar('Goal/angle_diff', angle_diff.median().item() * (180 / torch.pi), global_step=self.control_steps)
         self.writer.add_scalar('Goal/goal', self.in_goal.sum(dim=0).item(), global_step=self.control_steps)
-        self.goal_total += self.in_goal.sum(dim=0).item()
-        self.writer.add_scalar('Goal/goal_total', self.goal_total, global_step=self.control_steps)
-        self.writer.add_scalar('Goal/goal_reached', self.goal_reached.sum(dim=0).item(), global_step=self.control_steps)
-        self.goal_reached_total += self.goal_reached.sum(dim=0).item()
-        self.writer.add_scalar('Goal/goal_reached_total', self.goal_reached_total, global_step=self.control_steps)
+        self.writer.add_scalar('Goal/goal_stayed_for', self.goal_stayed_for.median().item(), global_step=self.control_steps)
+        self.writer.add_scalar('Goal/goal_reached_in_time', self.goal_reached_in_time.median().item(), global_step=self.control_steps)        
         #########################################
 
     def check_termination(self) -> None:
-        timeout = torch.ge(self.progress_buf, self.max_episode_length)
-        overspeed = torch.ge(
-            torch.norm(self.satellite_angvels, dim=1),
-            self.overspeed_ang_vel
-        )
+        #########################################
+        if self.control_steps % self.episode_scaling_steps == 0 and self.control_steps > 0:
+            self.max_episode_length = int(self.max_episode_length * self.episode_scaling)
+            if self.max_episode_length <= self.goal_time * 2: self.max_episode_length = int(self.goal_time * 2)
+        #########################################
+
+        timeout = self.progress_buf >= self.max_episode_length
+        overspeed = torch.norm(self.satellite_angvels, dim=1) >= self.overspeed_ang_vel
+
+        self.writer.add_scalar('Termination/timeout', timeout.sum(dim=0).item(), global_step=self.control_steps)
+        self.writer.add_scalar('Termination/overspeed', overspeed.sum(dim=0).item(), global_step=self.control_steps)
 
         self.timeout_buf = timeout
-        self.reset_buf = torch.logical_or(timeout, overspeed)
+        self.reset_buf = timeout | overspeed
     
     def pre_physics_step(self, actions):
         if self.heartbeat:
@@ -313,7 +339,7 @@ class Satellite(ADRVecTask):
         self.apply_torque()
 
     def post_physics_step(self):
-        self.progress_buf += 1
+        self.progress_buf = torch.add(self.progress_buf, 1)
         
         if self.heartbeat:
             return

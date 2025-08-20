@@ -51,12 +51,12 @@ CONFIG = {
 
         "envSpacing": 3.0,
 
-        "threshold_ang_goal": 0.02, # radians
-        "threshold_vel_goal": 0.02, # radians/sec
+        "threshold_ang_goal": 0.05, # radians
+        "threshold_vel_goal": 0.05, # radians/sec
         "overspeed_ang_vel": 0.5,  # radians/sec
         "goal_time": 10, # seconds
-        "sparse_reward": 0.0, # reward for staying the goal
-        "sparse_reward_in_time": 0.0, # reward for reaching the goal in time
+        "sparse_reward": 100.0, # reward for staying the goal
+        "sparse_reward_in_time": 100.0, # reward for reaching the goal in time
         "episode_length_s": 50.0, # seconds
         "episode_length_scaling": 0.95, # scaling factor for episode length
         "episode_length_scaling_steps": 2000, # steps after which the episode length is scaled
@@ -212,8 +212,8 @@ CONFIG = {
     },
     # --- dr_randomization -------------------------------------------------
     "dr_randomization": {
-        "enabled": False,
-        "automatic": True,
+        "enabled": True,
+        "automatic": False,
         "dr_params": {
             "observations": {
                 "range": [-0.1, 0.1],
