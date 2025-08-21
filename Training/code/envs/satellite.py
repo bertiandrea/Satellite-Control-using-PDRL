@@ -290,6 +290,7 @@ class Satellite(ADRVecTask):
             self.rew_buf
         )
         #########################################
+        self.writer.add_scalar('Reward_policy/final_reward', self.rew_buf.median().item(), global_step=self.control_steps)
         self.episode_rew_buf = torch.add(self.episode_rew_buf, self.rew_buf)
         self.writer.add_scalar('Reward_policy/total_episode', self.episode_rew_buf.median().item(), global_step=self.control_steps)
 
