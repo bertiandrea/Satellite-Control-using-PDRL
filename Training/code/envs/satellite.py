@@ -342,7 +342,7 @@ class Satellite(ADRVecTask):
 
         self.timeout_buf = timeout
         self.penalty_buf = overspeed
-        self.reset_buf = timeout | overspeed
+        self.reset_buf = timeout
     
     def pre_physics_step(self, actions):
         if self.heartbeat:

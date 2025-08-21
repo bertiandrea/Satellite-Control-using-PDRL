@@ -176,9 +176,9 @@ class VecTask(Env):
         self.episode_rew_buf = torch.zeros(
             self.num_envs, device=self.device, dtype=torch.float)
         self.reset_buf = torch.ones(
-            self.num_envs, device=self.device, dtype=torch.long)
+            self.num_envs, device=self.device, dtype=torch.bool)
         self.timeout_buf = torch.zeros(
-             self.num_envs, device=self.device, dtype=torch.long)
+             self.num_envs, device=self.device, dtype=torch.bool)
         self.progress_buf = torch.zeros(
             self.num_envs, device=self.device, dtype=torch.long)
         self.extras = {}
