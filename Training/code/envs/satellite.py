@@ -37,6 +37,7 @@ class Satellite(ADRVecTask):
         self.sparse_reward =         cfg["env"].get('sparse_reward', 10.0)
         self.sparse_reward_in_time = cfg["env"].get('sparse_reward_in_time', 10.0)
         self.overspeed_ang_vel =     cfg["env"].get('overspeed_ang_vel', 0.78540)            # radians/sec
+        self.overspeed_penalty =     cfg["env"].get('overspeed_penalty', 10.0)               # penalty for overspeeding angular velocity
         self.debug_arrows =          cfg["env"].get('debug_arrows', False)
         self.debug_prints =          cfg["env"].get('debug_prints', False)
         self.heartbeat =             cfg.get('heartbeat', False)
@@ -82,6 +83,10 @@ class Satellite(ADRVecTask):
         self.goal_stayed_for_reward_given = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
         self.goal_reached_in_time = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
         self.goal_reached_in_time_reward_given = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
+        ###################################################
+
+        ###################################################
+        self.penalty_buf = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
         ###################################################
 
     def create_sim(self) -> None:
@@ -188,6 +193,7 @@ class Satellite(ADRVecTask):
         self.progress_buf[ids] = 0
         self.reset_buf[ids] = False
         self.timeout_buf[ids] = False
+        self.penalty_buf[ids] = False
 
         self.rew_buf[ids] = 0.0
         self.episode_rew_buf[ids] = 0.0
@@ -218,6 +224,7 @@ class Satellite(ADRVecTask):
         self.writer.add_scalar('Actions/action_X', self.actions[0, 0].item(), global_step=self.control_steps)
         self.writer.add_scalar('Actions/action_Y', self.actions[0, 1].item(), global_step=self.control_steps)
         self.writer.add_scalar('Actions/action_Z', self.actions[0, 2].item(), global_step=self.control_steps)
+        self.writer.add_scalar('Actions/Energy', torch.abs(self.actions).mean(dim=0).sum().item(), global_step=self.control_steps)
 
         assert not torch.isnan(self.actions).any(), f"actions has NaN: {self.actions, self.states_buf}"
         assert not torch.isinf(self.actions).any(), f"actions has Inf: {self.actions, self.states_buf}"
@@ -276,6 +283,13 @@ class Satellite(ADRVecTask):
         self.goal_stayed_for_reward_given |= ~self.in_goal & (self.in_goal_counter == 0) & self.was_in_goal
         self.goal_reached_in_time_reward_given |= self.in_goal & (self.progress_buf <= self.goal_time)
         #########################################
+        # Penalty for overspeeding angular velocity
+        self.rew_buf = torch.where(
+            self.penalty_buf,
+            torch.sub(self.rew_buf, self.overspeed_penalty),
+            self.rew_buf
+        )
+        #########################################
         self.episode_rew_buf = torch.add(self.episode_rew_buf, self.rew_buf)
         self.writer.add_scalar('Reward_policy/total_episode', self.episode_rew_buf.median().item(), global_step=self.control_steps)
 
@@ -326,6 +340,7 @@ class Satellite(ADRVecTask):
         self.writer.add_scalar('Termination/overspeed', overspeed.sum(dim=0).item(), global_step=self.control_steps)
 
         self.timeout_buf = timeout
+        self.penalty_buf = overspeed
         self.reset_buf = timeout | overspeed
     
     def pre_physics_step(self, actions):

@@ -54,6 +54,7 @@ CONFIG = {
         "threshold_ang_goal": 0.02, # radians
         "threshold_vel_goal": 0.02, # radians/sec
         "overspeed_ang_vel": 0.5,  # radians/sec
+        "overspeed_penalty": 0.0, # penalty for overspeeding angular velocity
         "goal_time": 10, # seconds
         "sparse_reward": 100.0, # reward for staying the goal
         "sparse_reward_in_time": 100.0, # reward for reaching the goal in time
