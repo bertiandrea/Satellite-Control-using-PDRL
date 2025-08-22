@@ -10,7 +10,7 @@ from skrl.resources.preprocessors.torch import RunningStandardScaler
 from skrl.resources.schedulers.torch import KLAdaptiveRL
 
 NUM_ENVS = 4096
-N_EPOCHS = 1500
+N_EPOCHS = 3000
 HEADLESS = False
 PROFILE = False
 DEBUG_ARROWS = True
@@ -54,11 +54,11 @@ CONFIG = {
         "threshold_ang_goal": 0.02, # radians
         "threshold_vel_goal": 0.02, # radians/sec
         "overspeed_ang_vel": 0.5,  # radians/sec
-        "overspeed_penalty": 100.0, # penalty for overspeeding angular velocity
+        "overspeed_penalty": 11.0, # penalty for overspeeding angular velocity
         "goal_time": 10, # seconds
         "sparse_reward": 100.0, # reward for staying the goal
         "sparse_reward_in_time": 100.0, # reward for reaching the goal in time
-        "episode_length_s": 50.0, # seconds
+        "episode_length_s": 40.0, # seconds
         "episode_length_scaling": 0.95, # scaling factor for episode length
         "episode_length_scaling_steps": 2000, # steps after which the episode length is scaled
 
@@ -207,13 +207,13 @@ CONFIG = {
     # --- CAPS --------------------------------------------------------------
     "CAPS": {
         "enabled": False,
-        "lambda_temporal_smoothness": 0.0,  # λ_t
-        "lambda_spatial_smoothness": 0.0,   # λ_s
-        "noise_std": 0.00,                  # σ
+        "lambda_temporal_smoothness": 0.1,  # λ_t
+        "lambda_spatial_smoothness": 0.1,   # λ_s
+        "noise_std": 0.5,                   # σ
     },
     # --- dr_randomization -------------------------------------------------
     "dr_randomization": {
-        "enabled": True,
+        "enabled": False,
         "automatic": False,
         "dr_params": {
             "observations": {
@@ -246,15 +246,15 @@ CONFIG = {
         "adr" : {
             "worker_adr_boundary_fraction": 0.4,
 
-            "adr_queue_threshold_length": NUM_ENVS // 2,  # Number of samples to accumulate before adjusting the range
+            "adr_queue_threshold_length": NUM_ENVS // 4,  # Number of samples to accumulate before adjusting the range
 
-            "adr_objective_threshold_low": 2.0,
+            "adr_objective_threshold_low": 3.0,
             "adr_objective_threshold_high": 5.0,
 
             "adr_rollout_perf_alpha": 0.99,
             "adr_param": {
                 "range_path": 'actor_params.satellite.rigid_body_properties.inertia.range',
-                "init_range": [0.9, 1.1],
+                "init_range": [0.7, 1.3],
                 "limits": [0.5, 1.5],
                 "delta": 1.1,
                 "delta_style": 'multiplicative',

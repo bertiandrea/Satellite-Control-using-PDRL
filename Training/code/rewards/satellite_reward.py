@@ -48,8 +48,8 @@ class SimpleReward(RewardFunction):
         self.alpha_omega = alpha_omega
         self.alpha_acc = alpha_acc
 
-        self.target_deg = 2.5 * (math.pi / 180) # target angle in degrees
-        self.r_at_target = 0.99 # reward at target angle
+        self.target_deg = 10 * (math.pi / 180) # target angle in degrees
+        self.r_at_target = 0.95 # reward at target angle
         self.sigma = self.target_deg / math.sqrt(-2 * math.log(self.r_at_target))
 
     def compute(self, quats, ang_vels, ang_accs, goal_quat, goal_ang_vel, goal_ang_acc, actions):
@@ -118,14 +118,15 @@ class CurriculumReward(RewardFunction):
             5000, 7500, 10000, 
             12500, 15000, 17500, 20000,
             22500, 25000, 27500, 30000,
+            32500, 35000, 37500, 40000,
         ]
         self.alpha_q = alpha_q
         self.alpha_omega = alpha_omega
         self.alpha_acc = alpha_acc
         self.prev_actions = None
 
-        self.target_deg = 5 * (math.pi / 180) # target angle in degrees
-        self.final_target_deg = 0.1 * (math.pi / 180) # final target angle in degrees
+        self.target_deg = 10 * (math.pi / 180) # target angle in degrees
+        self.final_target_deg = 1 * (math.pi / 180) # final target angle in degrees
         self.r_at_target = 0.95 # reward at target angle
 
         n = len(self.changing_steps)

@@ -323,8 +323,8 @@ class Satellite(ADRVecTask):
         #########################################
         self.writer.add_scalar('Goal/angle_diff', angle_diff.median().item() * (180 / torch.pi), global_step=self.control_steps)
         self.writer.add_scalar('Goal/goal', self.in_goal.sum(dim=0).item(), global_step=self.control_steps)
-        self.writer.add_scalar('Goal/goal_stayed_for', self.goal_stayed_for.median().item(), global_step=self.control_steps)
-        self.writer.add_scalar('Goal/goal_reached_in_time', self.goal_reached_in_time.median().item(), global_step=self.control_steps)        
+        self.writer.add_scalar('Goal/goal_stayed_for', self.goal_stayed_for.sum().item(), global_step=self.control_steps)
+        self.writer.add_scalar('Goal/goal_reached_in_time', self.goal_reached_in_time.sum().item(), global_step=self.control_steps)
         #########################################
 
     def check_termination(self) -> None:
