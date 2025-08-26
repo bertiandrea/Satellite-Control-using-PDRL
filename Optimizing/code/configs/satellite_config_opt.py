@@ -14,7 +14,7 @@ N_EPOCHS = 100
 HEADLESS = True
 DEBUG_ARROWS = False
 
-ROLLOUTS = 16
+ROLLOUTS = 32
 LEARNING_EPOCHS = 8
 MINI_BATCHES = 8
 
@@ -48,13 +48,17 @@ CONFIG = {
 
         "envSpacing": 3.0,
 
-        "threshold_ang_goal": 0.02, # radians
-        "threshold_vel_goal": 0.02, # radians/sec
+        "threshold_ang_goal": 0.01, # radians
+        "threshold_vel_goal": 0.1, # radians/sec
         "overspeed_ang_vel": 0.5,  # radians/sec
+        "overspeed_penalty": 10.0, # penalty for overspeeding angular velocity
         "goal_time": 10, # seconds
-        "sparse_reward": 100.0, # reward for staying the goal
-        "sparse_reward_in_time": 100.0, # reward for reaching the goal in time
-        "episode_length_s": 50.0, # seconds
+        "sparse_reward": 10.0, # reward for staying the goal
+        
+        "max_episode_length": 30.0, # seconds
+        "min_episode_length": 20.0, # seconds
+        "episode_length_scaling": 0.99, # scaling factor for episode length
+        "episode_length_scaling_steps": 2000, # steps after which the episode length is scaled
 
         "clipActions": 1.0,
         "clipObservations": 10.0,
@@ -187,6 +191,6 @@ CONFIG = {
     # --- logging -----------------------------------------------------------
     "log_reward": {
         "log_reward": True,
-        "log_reward_interval": 100,
+        "log_reward_interval": 100,  # steps
     },
 }
