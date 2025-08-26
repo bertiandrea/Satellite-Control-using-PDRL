@@ -11,10 +11,10 @@ from skrl.resources.schedulers.torch import KLAdaptiveRL
 
 NUM_ENVS = 4096
 N_EPOCHS = 1000
-HEADLESS = True
-DEBUG_ARROWS = False
+HEADLESS = False
+DEBUG_ARROWS = True
 
-ROLLOUTS = 16
+ROLLOUTS = 32
 LEARNING_EPOCHS = 8
 MINI_BATCHES = 8
 
@@ -48,13 +48,17 @@ CONFIG = {
 
         "envSpacing": 3.0,
 
-        "threshold_ang_goal": 0.02, # radians
-        "threshold_vel_goal": 0.02, # radians/sec
+        "threshold_ang_goal": 0.01, # radians
+        "threshold_vel_goal": 0.1, # radians/sec
         "overspeed_ang_vel": 0.5,  # radians/sec
+        "overspeed_penalty": 10.0, # penalty for overspeeding angular velocity
         "goal_time": 10, # seconds
-        "sparse_reward": 100.0, # reward for staying the goal
-        "sparse_reward_in_time": 100.0, # reward for reaching the goal in time
-        "episode_length_s": 50.0, # seconds
+        "sparse_reward": 10.0, # reward for staying the goal
+        
+        "max_episode_length": 30.0, # seconds
+        "min_episode_length": 20.0, # seconds
+        "episode_length_scaling": 0.99, # scaling factor for episode length
+        "episode_length_scaling_steps": 2000, # steps after which the episode length is scaled
 
         "clipActions": 1.0,
         "clipObservations": 10.0,
@@ -65,7 +69,7 @@ CONFIG = {
         
         "debug_prints": False,
         
-        "discretize_starting_pos": False,
+        "discretize_starting_pos": True,
 
         "asset": {
 
@@ -159,6 +163,7 @@ CONFIG = {
             "learning_rate_scheduler_kwargs" : {"kl_threshold": 0.01},
             "state_preprocessor" : RunningStandardScaler,
             "value_preprocessor" : RunningStandardScaler,
+            "rewards_shaper" : None,
 
             "discount_factor" : 0.99, #(γ) Future reward discount; balances immediate versus long-term return.
             "learning_rate" : 1e-3, #Step size for optimizer (e.g. Adam) when updating policy and value networks.
@@ -187,6 +192,7 @@ CONFIG = {
             "timesteps": ROLLOUTS * N_EPOCHS,
             "disable_progressbar": False,
             "headless": HEADLESS,
+            "stochastic_evaluation": False,
         },
         "memory": {
             "rollouts": ROLLOUTS,
@@ -211,14 +217,7 @@ CONFIG = {
     },
     # --- randomize masses --------------------------------------------------
     "randomize_masses": {
-        "enabled": False,
+        "enabled": True,
         "mass_std": 5,
-    },
-    # --- low-level controller --------------------------------------------
-    "controller": {
-        "controller_logic": False
-    },
-    "pid": {
-        "rate": {"kp": 0.5, "ki": 0.0, "kd": 0.1},
-    },
+    }
 }
