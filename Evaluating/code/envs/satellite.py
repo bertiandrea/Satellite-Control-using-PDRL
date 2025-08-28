@@ -342,11 +342,14 @@ class Satellite(VecTask):
                 row = {
                     "env_id": i.item(),
                     "control_effort": float(self.control_effort_buf[i.item()].item()),
-                    "timeToGoal": float(self.time_to_goal_buf[i.item()].item()) if not torch.isnan(self.time_to_goal_buf[i]) else None,
+                    "timeToGoal": float(self.time_to_goal_buf[i.item()].item()) if not torch.isnan(self.time_to_goal_buf[i]) else "NaN",
                     "stayedInGoal": float(self.time_on_goal_buf[i.item()].item()),
                     "precisionOnGoal": float(self.precision_on_goal[i.item()].item())
                 }
                 self.df_log.loc[len(self.df_log)] = row
+            filename = f"evaluation_log_{self.control_steps}.csv"
+            self.df_log.to_csv(filename, index=False)
+            print(f"Evaluation log saved to {filename}")
 
         self.control_effort_buf[ids] = 0.0
         self.time_to_goal_buf[ids]   = float("nan")
@@ -465,7 +468,7 @@ class Satellite(VecTask):
             torch.add(self.in_goal_counter, 1),
             0
         )
-        self.exited_goal |= ~self.in_goal & (self.in_goal_counter == 0) & self.was_in_goal
+        self.exited_goal |= ~self.in_goal & self.was_in_goal
         #########################################
 
         #########################################
@@ -474,7 +477,7 @@ class Satellite(VecTask):
 
         #########################################
         self.time_to_goal_buf = torch.where(
-            self.in_goal & (self.in_goal_counter == 1) & torch.isnan(self.time_to_goal_buf),
+            self.in_goal & torch.isnan(self.time_to_goal_buf),
             self.progress_buf.float() * self.dt,
             self.time_to_goal_buf
         )

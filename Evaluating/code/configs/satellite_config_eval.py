@@ -217,7 +217,7 @@ CONFIG = {
     },
     # --- randomize masses --------------------------------------------------
     "randomize_masses": {
-        "enabled": True,
+        "enabled": False,
         "mass_std": 5,
     }
 }
