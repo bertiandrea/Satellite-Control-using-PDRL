@@ -48,7 +48,7 @@ CONFIG = {
 
         "envSpacing": 3.0,
 
-        "threshold_ang_goal": 0.01, # radians
+        "threshold_ang_goal": 0.1, # radians
         "threshold_vel_goal": 0.1, # radians/sec
         "overspeed_ang_vel": 0.5,  # radians/sec
         "overspeed_penalty": 10.0, # penalty for overspeeding angular velocity
@@ -56,9 +56,6 @@ CONFIG = {
         "sparse_reward": 10.0, # reward for staying the goal
         
         "max_episode_length": 30.0, # seconds
-        "min_episode_length": 20.0, # seconds
-        "episode_length_scaling": 0.99, # scaling factor for episode length
-        "episode_length_scaling_steps": 2000, # steps after which the episode length is scaled
 
         "clipActions": 1.0,
         "clipObservations": 10.0,

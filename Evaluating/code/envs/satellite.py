@@ -14,6 +14,7 @@ from isaacgym import gymutil, gymtorch, gymapi
 from pathlib import Path
 import numpy as np
 import pandas as pd
+import math
 
 BASE_COLORS_SAT  = torch.tensor([[1,0,1], [0,1,1], [1,1,0]], dtype=torch.float)
 BASE_COLORS_GOAL = torch.tensor([[0,0,1], [0,1,0], [1,0,0]], dtype=torch.float)
@@ -22,9 +23,6 @@ class Satellite(VecTask):
     def __init__(self, cfg, rl_device, sim_device, graphics_device_id, headless, virtual_screen_capture, force_render, reward_fn: RewardFunction = None):
         self.dt =                    cfg["sim"].get('dt', 1 / 60.0)                          # seconds
         self.max_episode_length =    int(cfg["env"].get('max_episode_length', 30.0) / self.dt)  # seconds
-        self.min_episode_length =    int(cfg["env"].get('min_episode_length', 20.0) / self.dt)  # seconds
-        self.episode_scaling =       cfg["env"].get('episode_length_scaling', 1.0)
-        self.episode_scaling_steps = cfg["env"].get('episode_length_scaling_steps', 5000)    # steps after which the episode length is scaled
 
         self.env_spacing =           cfg["env"].get('envSpacing', 0.0)                       # meters
         self.asset_name =            cfg["env"]["asset"].get('assetName', 'satellite')
@@ -113,8 +111,9 @@ class Satellite(VecTask):
 
         ###################################################
         self.df_log = pd.DataFrame(columns=[
-            "env_id",
-            "control_effort",
+            "envID",
+            "startGoalDistance",
+            "controlEffort",
             "timeToGoal",
             "stayedInGoal",
             "precisionOnGoal"
@@ -288,6 +287,31 @@ class Satellite(VecTask):
     ################################################################################################################################
            
     def reset_idx(self, ids: torch.Tensor) -> None:
+        ################## LOG ################
+        if len(ids) == self.num_envs:
+            # Episode is finished, log final performance on goal precision
+            self.precision_on_goal = quat_diff_rad(self.satellite_quats, self.goal_quat)
+            for i in ids:
+                row = {
+                    "envID": i.item(),
+                    "startGoalDistance": (180 / math.pi) * float(quat_diff_rad(self.initial_root_states[i, 3:7].unsqueeze(0), self.goal_quat[i].unsqueeze(0)).item()),
+                    "controlEffort": float(self.control_effort_buf[i.item()].item()),
+                    "timeToGoal": float(self.time_to_goal_buf[i.item()].item()) if not torch.isnan(self.time_to_goal_buf[i]) else "NaN",
+                    "stayedInGoal": float(self.time_on_goal_buf[i.item()].item()),
+                    "precisionOnGoal": (180 / math.pi) * float(self.precision_on_goal[i.item()].item())
+                }
+                self.df_log.loc[len(self.df_log)] = row
+            filename = f"evaluation_log_{self.control_steps}.csv"
+            self.df_log.to_csv(filename, index=False)
+            print(f"Evaluation log saved to {filename}")
+            self.df_log = pd.DataFrame(columns=self.df_log.columns)  # reset log
+
+        self.control_effort_buf[ids] = 0.0
+        self.time_to_goal_buf[ids]   = float("nan")
+        self.time_on_goal_buf[ids]  = 0.0
+        self.precision_on_goal[ids]  = 0.0
+        #######################################
+
         ################# SIM #################
         if self.discretize_starting_pos:
             # if discretizing starting positions, use the precomputed positions
@@ -333,29 +357,6 @@ class Satellite(VecTask):
                     self.random_object_mass(self.envs[i.item()], self.actor_handles[i.item()])
                     self.already_tested[i.item()] = True
         ###################################################
-
-        ###################################################
-        if len(ids) == self.num_envs:
-            # Episode is finished, log final performance on goal precision
-            self.precision_on_goal = quat_diff_rad(self.satellite_quats, self.goal_quat)
-            for i in ids:
-                row = {
-                    "env_id": i.item(),
-                    "control_effort": float(self.control_effort_buf[i.item()].item()),
-                    "timeToGoal": float(self.time_to_goal_buf[i.item()].item()) if not torch.isnan(self.time_to_goal_buf[i]) else "NaN",
-                    "stayedInGoal": float(self.time_on_goal_buf[i.item()].item()),
-                    "precisionOnGoal": float(self.precision_on_goal[i.item()].item())
-                }
-                self.df_log.loc[len(self.df_log)] = row
-            filename = f"evaluation_log_{self.control_steps}.csv"
-            self.df_log.to_csv(filename, index=False)
-            print(f"Evaluation log saved to {filename}")
-
-        self.control_effort_buf[ids] = 0.0
-        self.time_to_goal_buf[ids]   = float("nan")
-        self.time_on_goal_buf[ids]  = 0.0
-        self.precision_on_goal[ids]  = 0.0
-
 
     ################################################################################################################################
                 
@@ -495,12 +496,6 @@ class Satellite(VecTask):
         #########################################
     
     def check_termination(self) -> None:
-        #########################################
-        if self.control_steps % self.episode_scaling_steps == 0 and self.control_steps > 0:
-            self.max_episode_length = int(self.max_episode_length * self.episode_scaling)
-            if self.max_episode_length <= self.min_episode_length: self.max_episode_length = self.min_episode_length
-        #########################################
-
         timeout = self.progress_buf >= self.max_episode_length
         overspeed = torch.norm(self.satellite_angvels, dim=1) >= self.overspeed_ang_vel
 
