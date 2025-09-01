@@ -110,6 +110,8 @@ class Satellite(VecTask):
         ###################################################
 
         ###################################################
+        self.logs_filename = f"logs/evaluation_log_{self.control_steps}.csv"
+        Path("logs").mkdir(parents=True, exist_ok=True)
         self.df_log = pd.DataFrame(columns=[
             "envID",
             "startGoalDistance",
@@ -301,9 +303,8 @@ class Satellite(VecTask):
                     "precisionOnGoal": (180 / math.pi) * float(self.precision_on_goal[i.item()].item())
                 }
                 self.df_log.loc[len(self.df_log)] = row
-            filename = f"evaluation_log_{self.control_steps}.csv"
-            self.df_log.to_csv(filename, index=False)
-            print(f"Evaluation log saved to {filename}")
+            self.df_log.to_csv(self.logs_filename, index=False)
+            print(f"Evaluation log saved to {self.logs_filename}")
             self.df_log = pd.DataFrame(columns=self.df_log.columns)  # reset log
 
         self.control_effort_buf[ids] = 0.0
