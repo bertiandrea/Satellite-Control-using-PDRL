@@ -121,6 +121,9 @@ def main():
 
     if CONFIG["set_seed"]:
         set_seed(CONFIG["seed"])
+    else:
+        CONFIG["seed"] = torch.seed() % (2**32)
+        set_seed(CONFIG["seed"])
     
     #################################################################################
 
