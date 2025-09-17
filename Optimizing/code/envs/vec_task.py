@@ -161,8 +161,6 @@ class VecTask(Env):
             self.num_envs, device=self.device, dtype=torch.bool)
         self.timeout_buf = torch.zeros(
              self.num_envs, device=self.device, dtype=torch.bool)
-        self.penalty_buf = torch.zeros(
-            self.num_envs, device=self.device, dtype=torch.bool)
         self.progress_buf = torch.zeros(
             self.num_envs, device=self.device, dtype=torch.long)
         self.extras = {}
@@ -317,4 +315,3 @@ class VecTask(Env):
                     setattr(sim_params.flex, opt, config_sim["flex"][opt])
 
         return sim_params
-    

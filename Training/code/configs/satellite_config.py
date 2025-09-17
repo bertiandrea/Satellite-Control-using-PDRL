@@ -9,21 +9,21 @@ import torch
 from skrl.resources.preprocessors.torch import RunningStandardScaler
 from skrl.resources.schedulers.torch import KLAdaptiveRL
 
-NUM_ENVS = 4096
-N_EPOCHS = 3000
+NUM_ENVS = 8192
+N_EPOCHS = 1000
 HEADLESS = False
 PROFILE = False
 DEBUG_ARROWS = True
 DEBUG_PRINTS = False
 HEARTBEAT = False
 
-ROLLOUTS = 32
-LEARNING_EPOCHS = 8
+ROLLOUTS = 64
+LEARNING_EPOCHS = 16
 MINI_BATCHES = 8
 
 CONFIG = {
     # --- seed & devices ----------------------------------------------------
-    "set_seed": False,
+    "set_seed": True,
     "seed": 42,
 
     "physics_engine": "physx",
@@ -53,20 +53,19 @@ CONFIG = {
 
         "threshold_ang_goal": 0.01, # radians
         "threshold_vel_goal": 0.1, # radians/sec
-        "overspeed_ang_vel": 0.5,  # radians/sec
-        "overspeed_penalty": 10.0, # penalty for overspeeding angular velocity
-        "goal_time": 10, # seconds
+        "overspeed_ang_vel":  0.4, # radians/sec
+
         "sparse_reward": 10.0, # reward for staying the goal
         
-        "max_episode_length": 30.0, # seconds
+        "max_episode_length": 120.0, # seconds
         "min_episode_length": 20.0, # seconds
-        "episode_length_scaling": 0.99, # scaling factor for episode length
+        "episode_length_scaling": 0.95, # scaling factor for episode length
         "episode_length_scaling_steps": 2000, # steps after which the episode length is scaled
 
         "clipActions": 1.0,
         "clipObservations": 10.0,
 
-        "torque_scale": 1000.0,
+        "torque_scale": 10.0,
 
         "debug_arrows": DEBUG_ARROWS,
         
@@ -79,9 +78,6 @@ CONFIG = {
             "assetRoot": str(Path(__file__).resolve().parent.parent),
             "assetFileName": "satellite.urdf",
             "assetName": "satellite",
-
-            "init_pos_p": [0, 0, 0],
-            "init_pos_r": [0, 0, 0, 1],
             
             #"disable_gravity"
             #"collapse_fixed_joints"
@@ -236,7 +232,7 @@ CONFIG = {
                         "inertia": {
                             "distribution": "uniform",
                             "operation": "scaling",
-                            "range": [0.5, 1.5],
+                            "range": [0.99, 1.01],
                             "schedule": "linear",
                             "schedule_steps": 1,
                         },
@@ -255,9 +251,9 @@ CONFIG = {
             "adr_rollout_perf_alpha": 0.99,
             "adr_param": {
                 "range_path": 'actor_params.satellite.rigid_body_properties.inertia.range',
-                "init_range": [0.7, 1.3],
-                "limits": [0.5, 1.5],
-                "delta": 1.1,
+                "init_range": [0.99, 1.01],
+                "limits": [0.9, 1.1],
+                "delta": 1.01,
                 "delta_style": 'multiplicative',
             }
         }

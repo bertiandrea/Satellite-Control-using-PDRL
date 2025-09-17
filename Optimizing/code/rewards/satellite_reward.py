@@ -49,7 +49,7 @@ class SimpleReward(RewardFunction):
         self.alpha_acc = alpha_acc
 
         self.target_deg = 10 * (math.pi / 180) # target angle in degrees
-        self.r_at_target = 0.95 # reward at target angle
+        self.r_at_target = 0.99 # reward at target angle
         self.sigma = self.target_deg / math.sqrt(-2 * math.log(self.r_at_target))
 
     def compute(self, quats, ang_vels, ang_accs, goal_quat, goal_ang_vel, goal_ang_acc, actions):
@@ -115,14 +115,7 @@ class CurriculumReward(RewardFunction):
         super().__init__(log_reward, log_reward_interval)
 
         self.changing_steps = [
-            5000, 7500, 10000, 
-            12500, 15000, 17500, 20000,
-            22500, 25000, 27500, 30000,
-            32500, 35000, 37500, 40000,
-            42500, 45000, 47500, 50000,
-            52500, 55000, 57500, 60000,
-            62500, 65000, 67500, 70000,
-            72500, 75000, 77500, 80000,
+            10000, 20000, 30000, 40000, 50000, 60000
         ]
         self.alpha_q = alpha_q
         self.alpha_omega = alpha_omega
@@ -130,8 +123,8 @@ class CurriculumReward(RewardFunction):
         self.prev_actions = None
 
         self.target_deg = 10 * (math.pi / 180) # target angle in degrees
-        self.final_target_deg = 0.1 * (math.pi / 180) # final target angle in degrees
-        self.r_at_target = 0.95 # reward at target angle
+        self.final_target_deg = 1 * (math.pi / 180) # final target angle in degrees
+        self.r_at_target = 0.99 # reward at target angle
 
         n = len(self.changing_steps)
         decay_rate = math.log(self.final_target_deg / self.target_deg) / (n - 1)
@@ -271,7 +264,7 @@ class TwoPhaseReward(RewardFunction):
 
         self.prev_phi = phi.clone()
 
-        return torch.where(phi >= self.threshold, r2, r1)
+        return torch.where(phi >= self.threshold, r1, r2)
 
 class ExponentialStabilizationReward(RewardFunction):
     """
@@ -295,7 +288,7 @@ class ExponentialStabilizationReward(RewardFunction):
             r = exp_term
         else:
             delta = phi - self.prev_phi
-            r = torch.where(delta > 0.0, exp_term, exp_term - 1.0)
+            r = torch.where(delta > 0.0, exp_term - 1.0, exp_term)
         bonus = (phi <= self.goal_rad).float() * self.bonus
 
         self.prev_phi = phi.clone()
@@ -337,22 +330,27 @@ class ShapingReward(RewardFunction):
     """
     Reward shaping variants R1-R4 with custom beta and tau functions.
     """
-    def __init__(self, mode='R4'):
+    def __init__(self, mode='R4', dt=1.0/60.0):
         super().__init__()
         assert mode in ['R1', 'R2', 'R3', 'R4'], "Unsupported mode"
         self.mode = mode
         self._prev_phi = None
+        self.dt = dt
     
     @staticmethod
-    def beta_fn(delta, mode):
-        if mode in ['R1', 'R2']:
-            return torch.where(delta > 0.0, 0.5, 1.0)
-        return torch.exp(-0.5 * (math.pi + delta))
+    def beta1(delta):
+        return torch.where(delta > 0.0, 0.5, 1.0)
 
     @staticmethod
-    def tau_fn(phi, mode):
-        if mode in ['R1', 'R3']:
-            return torch.exp(2.0 - phi.abs())
+    def beta2(omega_err):
+        return torch.exp(-0.5 * (math.pi + omega_err))
+
+    @staticmethod
+    def tau1(phi):
+        return torch.exp(2.0 - phi.abs())
+
+    @staticmethod
+    def tau2(phi):
         return 14.0 / (1.0 + torch.exp(2.0 * phi.abs()))
     
     def compute(self, quats, ang_vels, ang_accs, goal_quat, goal_ang_vel, goal_ang_acc, actions):
@@ -360,10 +358,20 @@ class ShapingReward(RewardFunction):
 
         if self._prev_phi is None:
             delta = torch.zeros_like(phi)
+            dphi = torch.zeros_like(phi)
         else:
             delta = phi - self._prev_phi
-        beta = self.beta_fn(delta, self.mode)
-        tau = self.tau_fn(phi, self.mode)
+            dphi = (phi - self._prev_phi) / self.dt
+
+        if self.mode in ['R1', 'R2']:
+            beta = self.beta1(delta)
+        else:  # R3, R4
+            beta = self.beta2(dphi)
+
+        if self.mode in ['R1', 'R3']:
+            tau = self.tau1(phi)
+        else:  # R2, R4
+            tau = self.tau2(phi)
 
         self._prev_phi = phi.clone()
         

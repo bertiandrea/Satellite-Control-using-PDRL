@@ -177,16 +177,12 @@ class VecTask(Env):
             self.num_envs, device=self.device, dtype=torch.bool)
         self.timeout_buf = torch.zeros(
              self.num_envs, device=self.device, dtype=torch.bool)
-        self.penalty_buf = torch.zeros(
-            self.num_envs, device=self.device, dtype=torch.bool)
         self.progress_buf = torch.zeros(
             self.num_envs, device=self.device, dtype=torch.long)
         self.extras = {}
 
     def create_sim(self, compute_device: int, graphics_device: int, physics_engine, sim_params: gymapi.SimParams):
-        #sim = _create_sim_once(self.gym, compute_device, graphics_device, physics_engine, sim_params)
-        # WORKAROUND: BugFix for IsaacGym not handling multiple Gym instances correctly in the same process (Needed for Hyperparameter Optimization)
-        sim = self.gym.create_sim(compute_device, graphics_device, physics_engine, sim_params)
+        sim = _create_sim_once(self.gym, compute_device, graphics_device, physics_engine, sim_params)
         if sim is None:
             print("*** Failed to create sim")
             quit()
@@ -490,8 +486,8 @@ class ADRVecTask(VecTask):
         self.adr_objective_queues[BoundaryWorkerModes.HIGH].extend(objective_high_bounds.cpu().numpy().tolist())
         
         # Compute mean performance at each boundary
-        mean_low = np.mean(self.adr_objective_queues[BoundaryWorkerModes.LOW]) if self.adr_objective_queues[BoundaryWorkerModes.LOW] else 0.
-        mean_high = np.mean(self.adr_objective_queues[BoundaryWorkerModes.HIGH]) if self.adr_objective_queues[BoundaryWorkerModes.HIGH] else 0.
+        mean_low = np.mean(self.adr_objective_queues[BoundaryWorkerModes.LOW]) if len(self.adr_objective_queues[BoundaryWorkerModes.LOW]) else 0.
+        mean_high = np.mean(self.adr_objective_queues[BoundaryWorkerModes.HIGH]) if len(self.adr_objective_queues[BoundaryWorkerModes.HIGH]) else 0.
 
         ################################################################
         self.writer.add_scalar('ADR/mean_low', mean_low, global_step=self.control_steps)

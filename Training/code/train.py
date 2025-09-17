@@ -15,7 +15,7 @@ from code.rewards.satellite_reward import (
     ShapingReward,
 )
 
-import isaacgym
+import isaacgym #BugFix
 import torch
 
 from skrl.agents.torch.ppo import PPO, PPO_DEFAULT_CONFIG

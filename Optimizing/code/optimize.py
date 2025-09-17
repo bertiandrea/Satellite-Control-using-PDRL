@@ -1,6 +1,6 @@
 # optimize.py
 
-from code.configs.satellite_config_opt import CONFIG
+from code.configs.satellite_config import CONFIG
 from code.envs.satellite import Satellite
 from code.models.custom_model import Policy, Value, Shared
 from code.envs.wrappers.isaacgym_envs_wrapper import IsaacGymWrapper
@@ -13,13 +13,13 @@ from code.rewards.satellite_reward import (
     ContinuousDiscreteEffortReward,
     ShapingReward
 )
-from code.trainer.trainer import Trainer
 
 import isaacgym
 import torch
 
 from skrl.agents.torch.ppo import PPO, PPO_DEFAULT_CONFIG
 from skrl.memories.torch import RandomMemory
+from code.trainer.trainer import Trainer # Custom Trainer
 from skrl.utils import set_seed
 
 import argparse
@@ -149,6 +149,9 @@ def main():
     args = parse_args()
 
     if CONFIG["set_seed"]:
+        set_seed(CONFIG["seed"])
+    else:
+        CONFIG["seed"] = torch.seed() % (2**32)
         set_seed(CONFIG["seed"])
     
     ##################################################################

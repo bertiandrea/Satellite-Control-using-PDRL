@@ -26,8 +26,9 @@ class PPOWrapperCAPS(PPO):
     def init(self, trainer_cfg: Optional[Mapping[str, Any]] = None) -> None:
         super().init(trainer_cfg=trainer_cfg)
 
-        self.memory.create_tensor(name="next_states", size=self.observation_space, dtype=torch.float32)
-        self._tensors_names.append("next_states")
+        if self.memory is not None:
+            self.memory.create_tensor(name="next_states", size=self.observation_space, dtype=torch.float32)
+            self._tensors_names.append("next_states")
     
     def _update(self, timestep: int, timesteps: int) -> None:
         def compute_gae(
@@ -76,12 +77,18 @@ class PPOWrapperCAPS(PPO):
         self.memory.set_tensor_by_name("values", self._value_preprocessor(values, train=True))
         self.memory.set_tensor_by_name("returns", self._value_preprocessor(returns, train=True))
         self.memory.set_tensor_by_name("advantages", advantages)
-
+        
         sampled_batches = self.memory.sample_all(names=self._tensors_names, mini_batches=self._mini_batches)
 
         cumulative_policy_loss = 0
         cumulative_entropy_loss = 0
         cumulative_value_loss = 0
+
+        #####################################################################################
+        cumulative_Lt = 0
+        cumulative_Ls = 0
+        total_batches = 0
+        #####################################################################################
 
         for epoch in range(self._learning_epochs):
             kl_divergences = []
@@ -94,12 +101,11 @@ class PPOWrapperCAPS(PPO):
                 sampled_advantages,
                 sampled_next_states,  # <-- !!!
             ) in sampled_batches:
-                #####################################################################################
                 with torch.autocast(device_type=self._device_type, enabled=self._mixed_precision):
-                    sampled_states = self._state_preprocessor(sampled_states, train=not epoch)
+                    sampled_states_proc = self._state_preprocessor(sampled_states, train=not epoch)
 
                     _, next_log_prob, _ = self.policy.act(
-                        {"states": sampled_states, "taken_actions": sampled_actions}, role="policy"
+                        {"states": sampled_states_proc, "taken_actions": sampled_actions}, role="policy"
                     )
 
                     with torch.no_grad():
@@ -123,40 +129,36 @@ class PPOWrapperCAPS(PPO):
 
                     policy_loss = -torch.min(surrogate, surrogate_clipped).mean()
                     
-                #####################################################################################
-                #torch.no_grad() :
-                # Disabilita l’accumulazione del grafo computazionale, risparmiando memoria e tempo di calcolo quando non serve fare back-prop.
-                #torch.autocast(device_type=…, enabled=…) :
-                # Abilita (condizionatamente, a seconda di _mixed_precision) la precisione mista: le operazioni in virgola mobile verranno 
-                # automaticamente fatte in FP16 (dove sicuro) per velocizzare i calcoli e ridurre l’uso di memoria, ma torneranno in FP32 quando serve.
-                with torch.no_grad(), torch.autocast(device_type=self._device_type, enabled=self._mixed_precision):
-                    # μ(s_t), μ(s_{t+1}), μ(near s_t)
-                    next_proc = self._state_preprocessor(sampled_next_states, train=False)
-                    mu_cur,  _, _ = self.policy.compute({"states": sampled_states}, role="policy")
-                    mu_next, _, _ = self.policy.compute({"states": next_proc},    role="policy")
-                    noise = self._gauss.sample(sample_shape=sampled_states.shape).to(sampled_states) * self._noise_std
-                    near_states = self._state_preprocessor(sampled_states + noise, train=False)
-                    mu_near, _, _ = self.policy.compute({"states": near_states},  role="policy")
-                    
+                    #####################################################################################
+                
                     # Temporal Smoothness Lt
+                    mu_cur, _, _ = self.policy.compute({"states": sampled_states_proc}, role="policy") # Calcolo la media della policy sugli stati correnti s_{t}
+                    sample_next_states_proc = self._state_preprocessor(sampled_next_states, train=False) # Preprocessing degli stati successivi (normalizzazione, scaling, ecc.)
+                    mu_next, _, _ = self.policy.compute({"states": sample_next_states_proc}, role="policy") # Calcolo la media della policy sugli stati successivi s_{t+1}
                     Lt = self._lambda_t * F.mse_loss(mu_next, mu_cur)
+
                     # Spatial Smoothness Ls
+                    obs_std = sampled_states.std(dim=0, keepdim=True) + 1e-6 # Normalize noise by the standard deviation of the observations
+                    noise = self._gauss.sample(sample_shape=sampled_states.shape).to(sampled_states) * self._noise_std * obs_std # Genero rumore Gaussiano proporzionale alla scala delle feature
+                    near_states_proc = self._state_preprocessor(sampled_states + noise, train=False) # Aggiungo il rumore agli stati correnti e applico il preprocessing (normalizzazione, scaling, ecc.)
+                    mu_near, _, _ = self.policy.compute({"states": near_states_proc}, role="policy") # Calcolo la media della policy sugli stati vicini perturbati \bar{s}_t
                     Ls = self._lambda_s * F.mse_loss(mu_near, mu_cur)
 
                     CAPS_loss = Lt + Ls
 
-                #####################################################################################
+                    cumulative_Lt += Lt.item()
+                    cumulative_Ls += Ls.item()
+                    total_batches += 1
+                    
+                    #####################################################################################
                 
-                with torch.autocast(device_type=self._device_type, enabled=self._mixed_precision):
-                    predicted_values, _, _ = self.value.act({"states": sampled_states}, role="value")
+                    predicted_values, _, _ = self.value.act({"states": sampled_states_proc}, role="value")
                     
                     if self._clip_predicted_values:
                         predicted_values = sampled_values + torch.clip(
                             predicted_values - sampled_values, min=-self._value_clip, max=self._value_clip
                         )
                     value_loss = self._value_loss_scale * F.mse_loss(sampled_returns, predicted_values)
-
-                ######################################################################################
 
                 self.optimizer.zero_grad()
                 self.scaler.scale(CAPS_loss + policy_loss + entropy_loss + value_loss).backward()
@@ -178,8 +180,8 @@ class PPOWrapperCAPS(PPO):
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
 
-                cumulative_policy_loss  += policy_loss.item()
-                cumulative_value_loss   += value_loss.item()
+                cumulative_policy_loss += policy_loss.item()
+                cumulative_value_loss += value_loss.item()
                 if self._entropy_loss_scale:
                     cumulative_entropy_loss += entropy_loss.item()
                 
@@ -204,6 +206,20 @@ class PPOWrapperCAPS(PPO):
 
         if self._learning_rate_scheduler:
             self.track_data("Learning / Learning rate", self.scheduler.get_last_lr()[0])
+
+        #####################################################################################
+        self.track_data("CAPS / Lt", cumulative_Lt / total_batches)
+        self.track_data("CAPS / Ls", cumulative_Ls / total_batches)
+
+        total_loss_components = (
+            abs(cumulative_policy_loss / (self._learning_epochs * self._mini_batches))
+            + abs(cumulative_value_loss / (self._learning_epochs * self._mini_batches))
+            + (abs(cumulative_entropy_loss / (self._learning_epochs * self._mini_batches)) if self._entropy_loss_scale else 0.0)
+            + cumulative_Lt / total_batches
+            + cumulative_Ls / total_batches
+            + 1e-8
+        )
         
-        self.track_data("CAPS / Lt", Lt.item())
-        self.track_data("CAPS / Ls", Ls.item())
+        self.track_data("CAPS / % Lt", 100.0 * cumulative_Lt / total_batches / total_loss_components)
+        self.track_data("CAPS / % Ls", 100.0 * cumulative_Ls / total_batches / total_loss_components)
+        #####################################################################################

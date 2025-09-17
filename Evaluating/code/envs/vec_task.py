@@ -161,16 +161,12 @@ class VecTask(Env):
             self.num_envs, device=self.device, dtype=torch.bool)
         self.timeout_buf = torch.zeros(
              self.num_envs, device=self.device, dtype=torch.bool)
-        self.penalty_buf = torch.zeros(
-            self.num_envs, device=self.device, dtype=torch.bool)
         self.progress_buf = torch.zeros(
             self.num_envs, device=self.device, dtype=torch.long)
         self.extras = {}
 
     def create_sim(self, compute_device: int, graphics_device: int, physics_engine, sim_params: gymapi.SimParams):
-        #sim = _create_sim_once(self.gym, compute_device, graphics_device, physics_engine, sim_params)
-        # WORKAROUND: BugFix for IsaacGym not handling multiple Gym instances correctly in the same process (Needed for Hyperparameter Optimization)
-        sim = self.gym.create_sim(compute_device, graphics_device, physics_engine, sim_params)
+        sim = _create_sim_once(self.gym, compute_device, graphics_device, physics_engine, sim_params)
         if sim is None:
             print("*** Failed to create sim")
             quit()
