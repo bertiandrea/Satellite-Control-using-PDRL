@@ -2,17 +2,12 @@
 
 from code.configs.satellite_config import CONFIG
 from code.envs.satellite import Satellite
-from code.models.custom_model import Policy, Value, Shared
+from code.models.custom_model import Shared
 from code.envs.wrappers.isaacgym_envs_wrapper import IsaacGymWrapper
 from code.CAPS.agent_wrapper_CAPS import PPOWrapperCAPS
 from code.rewards.satellite_reward import (
     SimpleReward,
-    CurriculumReward,
-    WeightedSumReward,
-    TwoPhaseReward,
-    ExponentialStabilizationReward,
-    ContinuousDiscreteEffortReward,
-    ShapingReward,
+    ReductionReward,
 )
 
 import isaacgym #BugFix
@@ -38,12 +33,7 @@ import pandas as pd
 
 REWARD_MAP = {
     "simple": SimpleReward,
-    "curriculum": CurriculumReward,
-    "weighted_sum": WeightedSumReward,
-    "two_phase": TwoPhaseReward,
-    "exp_stabilization": ExponentialStabilizationReward,
-    "continuous_discrete_effort": ContinuousDiscreteEffortReward,
-    "shaping": ShapingReward,
+    "reduction": ReductionReward,
 }
 
 def parse_args():
@@ -127,6 +117,8 @@ def main():
     
     #################################################################################
 
+    print(CONFIG)
+    
     env = Satellite(
         cfg=CONFIG,
         rl_device=CONFIG["rl_device"],

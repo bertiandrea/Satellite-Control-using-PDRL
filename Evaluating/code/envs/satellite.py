@@ -1,6 +1,6 @@
 # satellite.py
 
-from code.utils.satellite_util import get_euler_xyz, quat_from_euler_xyz, sample_random_quaternion_batch, quat_diff, quat_diff_rad, quat_axis, quat_mul
+from code.utils.satellite_util import quat_from_euler_xyz, sample_random_quaternion_batch, quat_diff, quat_diff_rad, quat_axis, quat_mul
 from code.envs.vec_task import VecTask
 from code.rewards.satellite_reward import (
     SimpleReward,
@@ -15,13 +15,14 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import math
+import os
 
 BASE_COLORS_SAT  = torch.tensor([[1,0,1], [0,1,1], [1,1,0]], dtype=torch.float)
 BASE_COLORS_GOAL = torch.tensor([[0,0,1], [0,1,0], [1,0,0]], dtype=torch.float)
 
 class Satellite(VecTask):
     def __init__(self, cfg, rl_device, sim_device, graphics_device_id, headless, virtual_screen_capture, force_render, reward_fn: RewardFunction = None):
-        self.dt =                    cfg["sim"].get('dt', 1 / 60.0)                          # seconds
+        self.dt =                    cfg["sim"].get('dt', 1 / 60.0)                             # seconds
         self.max_episode_length =    int(cfg["env"].get('max_episode_length', 30.0) / self.dt)  # seconds
 
         self.env_spacing =           cfg["env"].get('envSpacing', 0.0)                       # meters
@@ -29,13 +30,12 @@ class Satellite(VecTask):
         self.asset_root =            cfg["env"]["asset"].get('assetRoot', str(Path(__file__).resolve().parent.parent))
         self.asset_file =            cfg["env"]["asset"].get('assetFileName', 'satellite.urdf')
         self.torque_scale =          cfg["env"].get('torque_scale', 1.0)
-        self.threshold_ang_goal =    cfg["env"].get('threshold_ang_goal', 0.01745)           # radians
-        self.threshold_vel_goal =    cfg["env"].get('threshold_vel_goal', 0.01745)           # radians/sec
-        self.sparse_reward =         cfg["env"].get('sparse_reward', 10.0)
-        self.overspeed_ang_vel =     cfg["env"].get('overspeed_ang_vel', 0.5)            # radians/sec
         self.debug_arrows =          cfg["env"].get('debug_arrows', False)
         self.debug_prints =          cfg["env"].get('debug_prints', False)
-        self.heartbeat =             cfg.get('heartbeat', False)
+
+        ###################################################
+        self.log_trajectories =      cfg["env"].get('log_trajectories', False)
+        ###################################################
 
         ###################################################
         self.actuation_noise_std =   cfg["env"].get('actuation_noise_std', 0.0)
@@ -100,32 +100,16 @@ class Satellite(VecTask):
         self.already_tested = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
         ###################################################
 
-        ###################################################
-        self.in_goal = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
-        self.was_in_goal = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
-        self.in_goal_counter = torch.zeros(self.num_envs, dtype=torch.long, device=self.device)
-
-        self.goal_stayed_for = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
-        self.exited_goal = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
-        ###################################################
-
-        ###################################################
-        self.logs_filename = f"logs/evaluation_log_{self.control_steps}.csv"
-        Path("logs").mkdir(parents=True, exist_ok=True)
-        self.df_log = pd.DataFrame(columns=[
-            "envID",
-            "startGoalDistance",
-            "controlEffort",
-            "timeToGoal",
-            "stayedInGoal",
-            "precisionOnGoal"
-        ])
-
-        self.control_effort_buf = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
-        self.time_to_goal_buf   = torch.full((self.num_envs,), float("nan"), dtype=torch.float, device=self.device)
-        self.time_on_goal_buf  = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
-        self.precision_on_goal  = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
-        ###################################################
+        # ---------------- Trajectory logging setup ----------------
+        os.makedirs("logs", exist_ok=True)
+        self.control_steps = 0
+        import datetime
+        date_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.log_path = f"logs/trajectories_{date_time}.pt"
+        self.log_buffer = []
+        self.log_every = 100     # ogni quanti step salvare in RAM
+        self.flush_every = 1000  # ogni quanti step scrivere su disco
+        # -----------------------------------------------------------
 
     def create_sim(self) -> None:
         self.sim = super().create_sim(self.device_id, self.graphics_device_id, self.physics_engine, self.sim_params) # Acquires the sim pointer
@@ -291,30 +275,6 @@ class Satellite(VecTask):
     ################################################################################################################################
            
     def reset_idx(self, ids: torch.Tensor) -> None:
-        ################## LOG ################
-        if len(ids) == self.num_envs:
-            # Episode is finished, log final performance on goal precision
-            self.precision_on_goal = quat_diff_rad(self.satellite_quats, self.goal_quat)
-            for i in ids:
-                row = {
-                    "envID": i.item(),
-                    "startGoalDistance": (180 / math.pi) * float(quat_diff_rad(self.initial_root_states[i, 3:7].unsqueeze(0), self.goal_quat[i].unsqueeze(0)).item()),
-                    "controlEffort": float(self.control_effort_buf[i.item()].item()),
-                    "timeToGoal": float(self.time_to_goal_buf[i.item()].item()) if not torch.isnan(self.time_to_goal_buf[i]) else "NaN",
-                    "stayedInGoal": float(self.time_on_goal_buf[i.item()].item()),
-                    "precisionOnGoal": (180 / math.pi) * float(self.precision_on_goal[i.item()].item())
-                }
-                self.df_log.loc[len(self.df_log)] = row
-            self.df_log.to_csv(self.logs_filename, index=False)
-            print(f"Evaluation log saved to {self.logs_filename}")
-            self.df_log = pd.DataFrame(columns=self.df_log.columns)  # reset log
-
-        self.control_effort_buf[ids] = 0.0
-        self.time_to_goal_buf[ids]   = float("nan")
-        self.time_on_goal_buf[ids]  = 0.0
-        self.precision_on_goal[ids]  = 0.0
-        #######################################
-
         ################# SIM #################
         if self.discretize_starting_pos:
             # if discretizing starting positions, use the precomputed positions
@@ -345,13 +305,6 @@ class Satellite(VecTask):
 
         self.rew_buf[ids] = 0.0
 
-        self.in_goal[ids] = False
-        self.was_in_goal[ids] = False
-        self.in_goal_counter[ids] = 0
-
-        self.goal_stayed_for[ids] = 0
-        self.exited_goal[ids] = False
-
         ###################################################
         if self.asteroid_enabled:
             for i in ids:
@@ -370,8 +323,6 @@ class Satellite(VecTask):
     def apply_torque(self) -> None:            
         self.actions = torch.mul(self.actions, self.torque_scale)
 
-        self.control_effort_buf += torch.abs(self.actions).sum(dim=1)
-
         #########################################
         if self.actuation_noise_std > 0.0:
             self.actions = torch.add(
@@ -382,15 +333,8 @@ class Satellite(VecTask):
 
         self.actions[self.reset_ids] = torch.zeros((len(self.reset_ids), 3), dtype=torch.float, device=self.device)
         
-        #########################################
-        self.writer.add_scalar('Actions/action_X', self.actions[0, 0].item(), global_step=self.control_steps)
-        self.writer.add_scalar('Actions/action_Y', self.actions[0, 1].item(), global_step=self.control_steps)
-        self.writer.add_scalar('Actions/action_Z', self.actions[0, 2].item(), global_step=self.control_steps)
-        self.writer.add_scalar('Actions/Energy', torch.abs(self.actions).mean(dim=0).sum().item(), global_step=self.control_steps)
-
         assert not torch.isnan(self.actions).any(), f"actions has NaN: {self.actions, self.states_buf}"
         assert not torch.isinf(self.actions).any(), f"actions has Inf: {self.actions, self.states_buf}"
-        #########################################
 
         #########################################
         if self.explosion and self.control_steps == self.explosion_time:
@@ -426,12 +370,10 @@ class Satellite(VecTask):
             self.obs_buf = torch.add(self.obs_buf, noise[:self.num_observations])
         ########################################
 
-        ########################################
         assert not torch.isnan(self.obs_buf).any(), f"self.obs_buf has NaN: {self.actions, self.obs_buf}"
         assert not torch.isinf(self.obs_buf).any(), f"self.obs_buf has Inf: {self.actions, self.obs_buf}"
         assert not torch.isnan(self.states_buf).any(), f"self.states_buf has NaN: {self.actions, self.states_buf}"
         assert not torch.isinf(self.states_buf).any(), f"self.states_buf has Inf: {self.actions, self.states_buf}"
-        ########################################
 
     def compute_reward(self) -> None:
         self.rew_buf = self.reward_fn.compute(
@@ -439,58 +381,14 @@ class Satellite(VecTask):
             self.goal_quat, self.goal_ang_vel, self.goal_ang_acc,
             self.actions
         )
-        #########################################
-        # Sparse reward for staying in the goal
-        self.rew_buf = torch.where(
-            self.in_goal & ~self.exited_goal,
-            torch.add(self.rew_buf, self.sparse_reward),
-            self.rew_buf
-        )
-        #########################################
-        self.writer.add_scalar('Reward_policy/final_reward', self.rew_buf.mean().item(), global_step=self.control_steps)
-
-    def check_goal(self) -> None:
-        #########################################
-        angle_diff = quat_diff_rad(self.satellite_quats, self.goal_quat)
-        ang_vel_diff = torch.norm(
-            torch.sub(self.satellite_angvels, self.goal_ang_vel),
-            dim=1
-        )
-        #########################################
-        self.in_goal = (angle_diff <= self.threshold_ang_goal) & (ang_vel_diff <= self.threshold_vel_goal)
-        self.was_in_goal = ~self.in_goal & (self.in_goal_counter > 0)
-        self.in_goal_counter = torch.where(
-            self.in_goal,
-            torch.add(self.in_goal_counter, 1),
-            0
-        )
-        self.exited_goal |= ~self.in_goal & self.was_in_goal
-        #########################################
-
-        #########################################
-        self.goal_stayed_for = torch.mul(self.in_goal_counter, self.dt)
-        #########################################
-
-        #########################################
-        self.writer.add_scalar('Goal/angle_diff', angle_diff.mean().item() * (180 / torch.pi), global_step=self.control_steps)
-        self.writer.add_scalar('Goal/goal', self.in_goal.sum(dim=0).item(), global_step=self.control_steps)
-        self.writer.add_scalar('Goal/goal_stayed_for', self.goal_stayed_for.sum().item(), global_step=self.control_steps)
-        #########################################
     
     def check_termination(self) -> None:
         timeout = self.progress_buf >= self.max_episode_length
-        overspeed = torch.norm(self.satellite_angvels, dim=1) >= self.overspeed_ang_vel
-
-        self.writer.add_scalar('Termination/timeout', timeout.sum(dim=0).item(), global_step=self.control_steps)
-        self.writer.add_scalar('Termination/overspeed', overspeed.sum(dim=0).item(), global_step=self.control_steps)
 
         self.timeout_buf = timeout
         self.reset_buf = timeout
     
-    def pre_physics_step(self, actions):
-        if self.heartbeat:
-            return
-
+    def pre_physics_step(self, actions):        
         self.actions = actions.to(self.device)
 
         self.termination()
@@ -500,16 +398,37 @@ class Satellite(VecTask):
     def post_physics_step(self):
         self.progress_buf = torch.add(self.progress_buf, 1)
         
-        if self.heartbeat:
-            return
-        
         self.compute_observations()
-
-        self.check_goal()
 
         self.compute_reward()
 
         self.check_termination()
-        
+
         if self.debug_arrows:
             self.draw_arrows()
+
+        # ---------------- Efficient buffered trajectory logging ----------------
+        if self.control_steps % self.log_every == 0:
+            self.log_buffer.append({
+                "step": int(self.control_steps),
+                "quat": self.satellite_quats.detach().cpu(),
+                "angvel": self.satellite_angvels.detach().cpu(),
+                "angacc": self.satellite_angacc.detach().cpu(),
+                "actions": self.actions.detach().cpu(),
+            })
+
+        if self.control_steps % self.flush_every == 0 and self.log_buffer:
+            tmp_path = f"{self.log_path}.tmp"
+            if os.path.exists(self.log_path):
+                data = torch.load(self.log_path, weights_only=True)
+                data.extend(self.log_buffer)
+            else:
+                data = list(self.log_buffer)
+            torch.save(data, tmp_path)
+            os.replace(tmp_path, self.log_path)
+            self.log_buffer.clear()
+            if self.debug_prints:
+                print(f"[LOG] Flushed to {self.log_path} at step {self.control_steps}")
+        self.control_steps += 1
+        # -----------------------------------------------------------------------
+

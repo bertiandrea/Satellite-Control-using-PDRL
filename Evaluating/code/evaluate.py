@@ -2,16 +2,12 @@
 
 from code.configs.satellite_config import CONFIG
 from code.envs.satellite import Satellite
-from code.models.custom_model import Policy, Value, Shared
+from code.models.custom_model import Shared
 from code.envs.wrappers.isaacgym_envs_wrapper import IsaacGymWrapper
+from code.CAPS.agent_wrapper_CAPS import PPOWrapperCAPS
 from code.rewards.satellite_reward import (
     SimpleReward,
-    CurriculumReward,
-    WeightedSumReward,
-    TwoPhaseReward,
-    ExponentialStabilizationReward,
-    ContinuousDiscreteEffortReward,
-    ShapingReward,
+    ReductionReward,
 )
 
 import isaacgym #BugFix
@@ -26,12 +22,7 @@ import argparse
 
 REWARD_MAP = {
     "simple": SimpleReward,
-    "curriculum": CurriculumReward,
-    "weighted_sum": WeightedSumReward,
-    "two_phase": TwoPhaseReward,
-    "exp_stabilization": ExponentialStabilizationReward,
-    "continuous_discrete_effort": ContinuousDiscreteEffortReward,
-    "shaping": ShapingReward,
+    "reduction": ReductionReward,
 }
 
 def parse_args():
@@ -55,6 +46,8 @@ def main():
         set_seed(CONFIG["seed"])
     
     #################################################################################
+
+    print(CONFIG)
 
     env = Satellite(
         cfg=CONFIG,
@@ -85,12 +78,21 @@ def main():
     cfg_ppo = PPO_DEFAULT_CONFIG.copy()
     cfg_ppo.update(CONFIG["rl"]["PPO"])
    
-    agent = PPO(models=models,
-            memory=memory,
-            cfg=cfg_ppo,
-            observation_space=env.state_space,
-            action_space=env.action_space,
-            device=env.device)
+    if CONFIG["CAPS"]["enabled"]:
+        cfg_ppo.update(CONFIG["CAPS"])
+        agent = PPOWrapperCAPS(models=models,
+                memory=memory,
+                cfg=cfg_ppo,
+                observation_space=env.state_space,
+                action_space=env.action_space,
+                device=env.device)
+    else:
+        agent = PPO(models=models,
+                memory=memory,
+                cfg=cfg_ppo,
+                observation_space=env.state_space,
+                action_space=env.action_space,
+                device=env.device)
 
     agent.load("/home/andreaberti/Satellite-Control-using-PDRL/Evaluating/best_agent.pt")
 

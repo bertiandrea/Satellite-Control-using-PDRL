@@ -2,19 +2,14 @@
 
 from code.configs.satellite_config import CONFIG
 from code.envs.satellite import Satellite
-from code.models.custom_model import Policy, Value, Shared
+from code.models.custom_model import Shared
 from code.envs.wrappers.isaacgym_envs_wrapper import IsaacGymWrapper
 from code.rewards.satellite_reward import (
     SimpleReward,
-    CurriculumReward,
-    WeightedSumReward,
-    TwoPhaseReward,
-    ExponentialStabilizationReward,
-    ContinuousDiscreteEffortReward,
-    ShapingReward
+    ReductionReward,
 )
 
-import isaacgym
+import isaacgym #BugFix
 import torch
 
 from skrl.agents.torch.ppo import PPO, PPO_DEFAULT_CONFIG
@@ -37,12 +32,7 @@ N_TRIALS = 1000
 
 REWARD_MAP = {
     "simple": SimpleReward,
-    "curriculum": CurriculumReward,
-    "weighted_sum": WeightedSumReward,
-    "two_phase": TwoPhaseReward,
-    "exp_stabilization": ExponentialStabilizationReward,
-    "continuous_discrete_effort": ContinuousDiscreteEffortReward,
-    "shaping": ShapingReward,
+    "reduction": ReductionReward,
 }
 
 def parse_args():
@@ -154,8 +144,10 @@ def main():
         CONFIG["seed"] = torch.seed() % (2**32)
         set_seed(CONFIG["seed"])
     
-    ##################################################################
-    
+    #################################################################################
+
+    print(CONFIG)
+
     study = optuna.create_study(
         study_name=f"Satellite_{args.reward_fn}",
         storage="sqlite:///optuna_study.db",

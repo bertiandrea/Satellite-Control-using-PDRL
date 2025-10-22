@@ -1,6 +1,6 @@
 # satellite.py
 
-from code.utils.satellite_util import get_euler_xyz, quat_from_euler_xyz, sample_random_quaternion_batch, quat_diff, quat_diff_rad, quat_axis, quat_mul
+from code.utils.satellite_util import sample_random_quaternion_batch, quat_diff, quat_diff_rad, quat_axis
 from code.envs.vec_task import VecTask
 from code.rewards.satellite_reward import (
     SimpleReward,
@@ -19,24 +19,16 @@ BASE_COLORS_GOAL = torch.tensor([[0,0,1], [0,1,0], [1,0,0]], dtype=torch.float)
 
 class Satellite(VecTask):
     def __init__(self, cfg, rl_device, sim_device, graphics_device_id, headless, virtual_screen_capture, force_render, reward_fn: RewardFunction = None):
-        self.dt =                    cfg["sim"].get('dt', 1 / 60.0)                          # seconds
+        self.dt =                    cfg["sim"].get('dt', 1 / 60.0)                             # seconds
         self.max_episode_length =    int(cfg["env"].get('max_episode_length', 30.0) / self.dt)  # seconds
-        self.min_episode_length =    int(cfg["env"].get('min_episode_length', 20.0) / self.dt)  # seconds
-        self.episode_scaling =       cfg["env"].get('episode_length_scaling', 1.0)
-        self.episode_scaling_steps = cfg["env"].get('episode_length_scaling_steps', 5000)    # steps after which the episode length is scaled
 
         self.env_spacing =           cfg["env"].get('envSpacing', 0.0)                       # meters
         self.asset_name =            cfg["env"]["asset"].get('assetName', 'satellite')
         self.asset_root =            cfg["env"]["asset"].get('assetRoot', str(Path(__file__).resolve().parent.parent))
         self.asset_file =            cfg["env"]["asset"].get('assetFileName', 'satellite.urdf')
         self.torque_scale =          cfg["env"].get('torque_scale', 1.0)
-        self.threshold_ang_goal =    cfg["env"].get('threshold_ang_goal', 0.01745)           # radians
-        self.threshold_vel_goal =    cfg["env"].get('threshold_vel_goal', 0.01745)           # radians/sec
-        self.sparse_reward =         cfg["env"].get('sparse_reward', 10.0)
-        self.overspeed_ang_vel =     cfg["env"].get('overspeed_ang_vel', 0.5)            # radians/sec
         self.debug_arrows =          cfg["env"].get('debug_arrows', False)
         self.debug_prints =          cfg["env"].get('debug_prints', False)
-        self.heartbeat =             cfg.get('heartbeat', False)
 
         super().__init__(config=cfg, rl_device=rl_device, sim_device=sim_device, graphics_device_id=graphics_device_id, headless=headless, virtual_screen_capture=virtual_screen_capture, force_render=force_render)
 
@@ -69,15 +61,6 @@ class Satellite(VecTask):
             self.reward_fn: RewardFunction = SimpleReward()
         else:
             self.reward_fn = reward_fn
-        
-        ###################################################
-        self.in_goal = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
-        self.was_in_goal = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
-        self.in_goal_counter = torch.zeros(self.num_envs, dtype=torch.long, device=self.device)
-
-        self.goal_stayed_for = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
-        self.exited_goal = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
-        ###################################################
 
     def create_sim(self) -> None:
         self.sim = super().create_sim(self.device_id, self.graphics_device_id, self.physics_engine, self.sim_params) # Acquires the sim pointer
@@ -102,6 +85,7 @@ class Satellite(VecTask):
             asset_init_pos_p = [0, 0, 0]
             asset_init_pos_r = np.random.randn(4)
             asset_init_pos_r /= np.linalg.norm(asset_init_pos_r)
+            ###################################################
             actor_handle = self.create_actor(i, env, self.asset, asset_init_pos_p, asset_init_pos_r, 1, self.asset_name)
             ###################################################
             self.actor_handles.append(actor_handle)
@@ -157,8 +141,8 @@ class Satellite(VecTask):
     def reset_idx(self, ids: torch.Tensor) -> None:
         ################# SIM #################
         self.root_states[ids] = torch.zeros((len(ids), 13), dtype=torch.float32, device=self.device)
-        
         self.root_states[ids, 3:7] = sample_random_quaternion_batch(self.device, len(ids))
+
         idx32 = ids.to(dtype=torch.int32)
         self.gym.set_actor_root_state_tensor_indexed(
             self.sim, self.actor_root_state, gymtorch.unwrap_tensor(idx32), len(idx32)
@@ -177,12 +161,6 @@ class Satellite(VecTask):
 
         self.rew_buf[ids] = 0.0
 
-        self.in_goal[ids] = False
-        self.was_in_goal[ids] = False
-        self.in_goal_counter[ids] = 0
-
-        self.goal_stayed_for[ids] = 0
-        self.exited_goal[ids] = False
     ################################################################################################################################
                 
     def termination(self) -> None:
@@ -192,20 +170,10 @@ class Satellite(VecTask):
     
     def apply_torque(self) -> None:        
         self.actions = torch.mul(self.actions, self.torque_scale)
-
-        #########################################
-        
         self.actions[self.reset_ids] = torch.zeros((len(self.reset_ids), 3), dtype=torch.float, device=self.device)
         
-        #########################################
-        self.writer.add_scalar('Actions/action_X', self.actions[0, 0].item(), global_step=self.control_steps)
-        self.writer.add_scalar('Actions/action_Y', self.actions[0, 1].item(), global_step=self.control_steps)
-        self.writer.add_scalar('Actions/action_Z', self.actions[0, 2].item(), global_step=self.control_steps)
-        self.writer.add_scalar('Actions/Energy', torch.abs(self.actions).mean(dim=0).sum().item(), global_step=self.control_steps)
-
         assert not torch.isnan(self.actions).any(), f"actions has NaN: {self.actions, self.states_buf}"
         assert not torch.isinf(self.actions).any(), f"actions has Inf: {self.actions, self.states_buf}"
-        #########################################
 
         ################## SIM ##################
         self.torque_tensor[self.root_indices] = self.actions
@@ -230,12 +198,10 @@ class Satellite(VecTask):
             (self.obs_buf, self.satellite_angvels), dim=-1)
         ########################################
 
-        ########################################
         assert not torch.isnan(self.obs_buf).any(), f"self.obs_buf has NaN: {self.actions, self.obs_buf}"
         assert not torch.isinf(self.obs_buf).any(), f"self.obs_buf has Inf: {self.actions, self.obs_buf}"
         assert not torch.isnan(self.states_buf).any(), f"self.states_buf has NaN: {self.actions, self.states_buf}"
         assert not torch.isinf(self.states_buf).any(), f"self.states_buf has Inf: {self.actions, self.states_buf}"
-        ########################################
 
     def compute_reward(self) -> None:
         self.rew_buf = self.reward_fn.compute(
@@ -243,64 +209,14 @@ class Satellite(VecTask):
             self.goal_quat, self.goal_ang_vel, self.goal_ang_acc,
             self.actions
         )
-        #########################################
-        # Sparse reward for staying in the goal
-        self.rew_buf = torch.where(
-            self.in_goal & ~self.exited_goal,
-            torch.add(self.rew_buf, self.sparse_reward),
-            self.rew_buf
-        )
-        #########################################
-        self.writer.add_scalar('Reward_policy/final_reward', self.rew_buf.mean().item(), global_step=self.control_steps)
-
-    def check_goal(self) -> None:
-        #########################################
-        angle_diff = quat_diff_rad(self.satellite_quats, self.goal_quat)
-        ang_vel_diff = torch.norm(
-            torch.sub(self.satellite_angvels, self.goal_ang_vel),
-            dim=1
-        )
-        #########################################
-        self.in_goal = (angle_diff <= self.threshold_ang_goal) & (ang_vel_diff <= self.threshold_vel_goal)
-        self.was_in_goal = ~self.in_goal & (self.in_goal_counter > 0)
-        self.in_goal_counter = torch.where(
-            self.in_goal,
-            torch.add(self.in_goal_counter, 1),
-            0
-        )
-        self.exited_goal |= ~self.in_goal & self.was_in_goal
-        #########################################
-
-        #########################################
-        self.goal_stayed_for = torch.mul(self.in_goal_counter, self.dt)
-        #########################################
-
-        #########################################
-        self.writer.add_scalar('Goal/angle_diff', angle_diff.mean().item() * (180 / torch.pi), global_step=self.control_steps)
-        self.writer.add_scalar('Goal/goal', self.in_goal.sum(dim=0).item(), global_step=self.control_steps)
-        self.writer.add_scalar('Goal/goal_stayed_for', self.goal_stayed_for.sum().item(), global_step=self.control_steps)
-        #########################################
 
     def check_termination(self) -> None:
-        #########################################
-        if self.control_steps % self.episode_scaling_steps == 0 and self.control_steps > 0:
-            self.max_episode_length = int(self.max_episode_length * self.episode_scaling)
-            if self.max_episode_length <= self.min_episode_length: self.max_episode_length = self.min_episode_length
-        #########################################
-
         timeout = self.progress_buf >= self.max_episode_length
-        overspeed = torch.norm(self.satellite_angvels, dim=1) >= self.overspeed_ang_vel
-
-        self.writer.add_scalar('Termination/timeout', timeout.sum(dim=0).item(), global_step=self.control_steps)
-        self.writer.add_scalar('Termination/overspeed', overspeed.sum(dim=0).item(), global_step=self.control_steps)
 
         self.timeout_buf = timeout
         self.reset_buf = timeout
     
     def pre_physics_step(self, actions):
-        if self.heartbeat:
-            return
-
         self.actions = actions.to(self.device)
 
         self.termination()
@@ -310,16 +226,11 @@ class Satellite(VecTask):
     def post_physics_step(self):
         self.progress_buf = torch.add(self.progress_buf, 1)
         
-        if self.heartbeat:
-            return
-        
         self.compute_observations()
-
-        self.check_goal()
 
         self.compute_reward()
 
         self.check_termination()
-        
+
         if self.debug_arrows:
             self.draw_arrows()
